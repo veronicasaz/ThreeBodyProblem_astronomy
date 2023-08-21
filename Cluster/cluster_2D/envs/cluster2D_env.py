@@ -5,7 +5,6 @@ import time
 from setuptools import setup
 import json
 
-# from helpfunctions import load_json
 from amuse.units import units, constants, nbody_system
 from amuse.ic.kingmodel import new_king_model
 from amuse.community.hermite.interface import Hermite
@@ -73,6 +72,10 @@ class ClusterEnv(gym.Env):
             integrator = Hermite
         return integrator
     
+    def _strip_units(self, particles): #TODO
+        state = np.zeros(())
+        return state
+    
     def reset(self, options = None):
         seed = self.settings['Integration']['seed']
         # super().reset(seed=seed) # We need to seed self.np_random
@@ -92,8 +95,8 @@ class ClusterEnv(gym.Env):
         self.L_0 = np.array([0,0,0])
         self.E_0, self.L_0 = self._get_info()
 
-        observation = self.gravity
-        info = self._get_info()
+        # state = self.gravity.particles
+        state = [0, 0, 0, 0, 0] # Computation time, Error_0, L_0x3
         self.iteration = 0
         self.t_cumul = 0.0 # cumulative time for integration
         self.t0_comp = time.time()
@@ -107,7 +110,7 @@ class ClusterEnv(gym.Env):
             self.comp_time = np.zeros((self.settings['Integration']['max_steps'], 1)) # computation time
             self._savestate(0, 0, self.particles, self.E_0, self.L_0) # save initial state
 
-        return observation, info
+        return state, [self.E_0, self.L_0]
     
     def _calculate_reward(self, info, T, W):
         Delta_E, Delta_O = info
@@ -119,6 +122,7 @@ class ClusterEnv(gym.Env):
         t_step = self.settings['Integration']['t_step']
 
         t0_step = time.time()
+
         # Apply action
         current_int = self.settings['Integration']['integrators'][action]
         if current_int != self.previous_int: # if it's different, change integrator
@@ -144,14 +148,15 @@ class ClusterEnv(gym.Env):
         self.previous_int = current_int
         
         # Get information for the reward
-        if self.settings['Integration']['savestate'] == False:
-            info = self._get_info()
-        reward = self._calculate_reward(info, time.time() - t0_step, self.W) # Use computation time for this step, including changing integrator
+        T = time.time() - t0_step
+        info = self._get_info()
+        state = [T, info[0], info[1][0], info[1][1], info[1][2]]
+        reward = self._calculate_reward(info, T, self.W) # Use computation time for this step, including changing integrator
 
         self.iteration += 1
-        T = time.time() - self.t0_comp  # computation time 
         self.comp_time[self.iteration-1] = T
-        np.save(self.settings['Integration']['savefile'] +'_tcomp', self.comp_time)
+        if self.settings['Integration']['savestate'] == True:
+            np.save(self.settings['Integration']['savefile'] +'_tcomp', self.comp_time)
 
 
         # Display information at each step
@@ -165,11 +170,11 @@ class ClusterEnv(gym.Env):
         if (self.iteration == self.settings['Integration']['max_steps']):
             terminated = True
             self.gravity.stop()
-            plot_trajectory(self.settings)
+            # plot_trajectory(self.settings)
         else:
             terminated = False
 
-        return self.particles, reward, terminated, info
+        return state, reward, terminated, info
     
     def close(self): #TODO: needed?
         # if self.window is not None:
