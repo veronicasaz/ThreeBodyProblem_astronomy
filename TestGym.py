@@ -44,7 +44,6 @@ if is_ipython:
 #     epochs += 1
 
 # print("END", rewards, penalties)
-
 ################################################################################
 settings = load_json("./settings.json")
 
@@ -130,7 +129,7 @@ def select_action(state):
 
 episode_rewards = []
 
-def plot_durations(show_result=False):
+def plot_durations(episode_rewards, show_result=False):
     plt.figure(1)
     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
     if show_result:
@@ -141,19 +140,22 @@ def plot_durations(show_result=False):
     plt.xlabel('Episode')
     plt.ylabel('Reward')
     plt.plot(rewards_t.numpy())
+    # plt.close()
+
     # Take 100 episode averages and plot them too
     # if len(durations_t) >= 100:
         # means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
         # means = torch.cat((torch.zeros(99), means))
         # plt.plot(means.numpy())
 
-    plt.pause(0.001)  # pause a bit so that plots are updated
-    if is_ipython:
-        if not show_result:
-            display.display(plt.gcf())
-            display.clear_output(wait=True)
-        else:
-            display.display(plt.gcf())
+    # plt.pause(0.001)  # pause a bit so that plots are updated
+    # if is_ipython:
+    #     if not show_result:
+    #         display.display(plt.gcf())
+    #         display.clear_output(wait=True)
+    #     else:
+    #         display.display(plt.gcf())
+
 
 def optimize_model():
     if len(memory) < BATCH_SIZE:
@@ -224,6 +226,7 @@ for i_episode in range(settings['Training']['max_iter']):
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
+        print(reward)
         # Store the transition in memory
         memory.push(state, action, next_state, reward)
 
@@ -243,11 +246,12 @@ for i_episode in range(settings['Training']['max_iter']):
 
         if done:
             episode_rewards.append(reward_p)
-            plot_durations()
+            plot_durations(episode_rewards)
             break
+    env.close()
 
 print('Complete')
-plot_durations(show_result=True)
+plot_durations(episode_rewards, show_result=True)
 plt.ioff()
 plt.show()
 # for i in range(1, settings['Training']['max_iter']):

@@ -3,14 +3,13 @@
     {
        "savefile": "./state",
        "savestate": true,
-       "units": "nbody",
+       "units": "si",
        "bodies": 10, 
        "masses": 0.1,
-       "r_cluster": 0.1,
        "max_steps": 10,
-       "t_step": 0.001,
-       "check_step": 100, 
-       "integrators": ["BHTree", "Hermite" ],
+       "check_step": 1,
+       "t_step": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1], 
+       "order": [1, 2, 3, 5, 10 ],
        "seed": 1234,
        "plot": false
      },

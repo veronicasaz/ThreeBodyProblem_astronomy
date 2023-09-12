@@ -9,6 +9,7 @@ from amuse.units import units, constants, nbody_system
 from amuse.ic.kingmodel import new_king_model
 from amuse.community.hermite.interface import Hermite
 from amuse.community.bhtree.interface import BHTree
+from amuse.community.ph4.interface import ph4
 
 from plots import plot_state, plot_trajectory
 
@@ -17,15 +18,16 @@ from plots import plot_state, plot_trajectory
 https://www.gymlibrary.dev/content/environment_creation/
 """
 
-class ClusterEnv(gym.Env):
-    def __init__(self, render_mode = None, bodies = 4):
+class TimeSteppingEnv(gym.Env):
+    def __init__(self, render_mode = None, bodies = 4, namesave = ""):
         self.size = 4*bodies
-        self.settings = load_json("./settings.json")
+        self.settings = load_json("./settings_timestep.json")
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
-        self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['integrators']))
+        self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['tstep_param']))
         self.W = self.settings['Training']['weights']
+        self.namesave = namesave
     
     # def _convert_units(self, converter, bodies, G):
     #     bodies.position = converter.to_nbody(bodies.position)
@@ -45,6 +47,7 @@ class ClusterEnv(gym.Env):
         self.converter = nbody_system.nbody_to_si(m_stars.sum() | units.MSun, r_cluster)
         W0 = 3
         if self.settings['Integration']['units'] == 'si':
+            np.random.seed(seed)
             bodies = new_king_model(self.n_stars, W0, self.converter)
             bodies.scale_to_standard(convert_nbody=self.converter)
             self.G = constants.G
@@ -54,7 +57,9 @@ class ClusterEnv(gym.Env):
             self.units_t = units.s 
             self.units_l = units.m
             self.units_m = units.kg
+
         elif self.settings['Integration']['units'] == 'nbody':
+            np.random.seed(seed)
             bodies = new_king_model(self.n_stars, W0)
             self.G = self.converter.to_nbody(constants.G)
             self.units_G = nbody_system.length**3 * nbody_system.mass**(-1) * nbody_system.time**(-2)
@@ -84,10 +89,10 @@ class ClusterEnv(gym.Env):
         Delta_L = L
         return Delta_E, Delta_L
     
-    def _get_integrator(self, index):
-        if self.settings['Integration']['integrators'][index] == 'BHTree':             
+    def _get_integrator(self):
+        if self.settings['Integration']['integrators']== 'BHTree':             
             integrator = BHTree
-        elif self.settings['Integration']['integrators'][index] == 'Hermite':             
+        elif self.settings['Integration']['integrators'] == 'Hermite':             
             integrator = Hermite
         return integrator
     
@@ -102,9 +107,11 @@ class ClusterEnv(gym.Env):
         self.particles = self._initial_conditions(seed)
 
         # Initialize basic integrator and add particles
-        integrator = self._get_integrator(0)
-        self.gravity = integrator()
-        self.previous_int = self.settings['Integration']['integrators'][0]
+        # integrator = self._get_integrator()
+        # self.gravity = integrator()
+        # self.gravity.parameters.timestep_parameter = self.settings['Integration']['tstep_param'][0]
+        self.gravity = ph4()
+        self.gravity.parameters.timestep_parameter = self.settings['Integration']['tstep_param'][0]
 
         self.gravity.particles.add_particles(self.particles)
         self.channel = self.gravity.particles.new_channel_to(self.particles)
@@ -125,9 +132,9 @@ class ClusterEnv(gym.Env):
             steps = (self.settings['Integration']['check_step']) * \
                     self.settings['Integration']['max_steps']
             self.state = np.zeros((steps, self.n_stars, 8)) # action, mass, rx3, vx3, 
-            self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
+            self.cons = np.zeros((steps, 6)) # action, E, Lx3, t
             self.comp_time = np.zeros((self.settings['Integration']['max_steps'], 1)) # computation time
-            self._savestate(0, 0, self.particles, self.E_0, self.L_0) # save initial state
+            self._savestate(0, 0, self.particles, self.E_0, self.L_0, 0) # save initial state
 
         return state, [self.E_0, self.L_0]
     
@@ -139,23 +146,16 @@ class ClusterEnv(gym.Env):
 
         check_step = self.settings['Integration']['check_step'] # after how many time steps it is checked
         t_step = self.settings['Integration']['t_step']
+        self.t_cumul += t_step*check_step
 
         t0_step = time.time()
 
         # Apply action
         current_int = self.settings['Integration']['integrators'][action]
-        if current_int != self.previous_int: # if it's different, change integrator
-            self.gravity.stop()
-            self.gravity = self._get_integrator(action)()
-            self.gravity.particles.add_particles(self.particles)
-            self.channel = self.gravity.particles.new_channel_to(self.particles)
-            self.t_cumul = 0
-        elif current_int == self.previous_int and self.iteration > 0: # Do not accumulate for the first iter
-            self.t_cumul += t_step*check_step
 
         # Time steps
-        # times = (np.arange(0, (check_step+1)*t_step, t_step) + self.t_cumul) | units.yr 
         times = (np.arange(0, (check_step+1), 1)*t_step + self.t_cumul) * self.units_time
+        self.gravity.parameters.timestep_parameter = self.settings['Integration']['tstep_param'][action]
 
         # Integrate
         for i, t in enumerate(times[1:]):
@@ -163,7 +163,7 @@ class ClusterEnv(gym.Env):
             self.channel.copy()
             if self.settings['Integration']['savestate'] == True:
                 info = self._get_info()
-                self._savestate(action, self.iteration*len(times[1:]) + i, self.particles, info[0], info[1]) # save initial state
+                self._savestate(action, self.iteration*len(times[1:]) + i, self.particles, info[0], info[1], t.value_in(self.units_t)) # save initial state
         self.previous_int = current_int
         
         # Get information for the reward
@@ -175,7 +175,7 @@ class ClusterEnv(gym.Env):
         self.iteration += 1
         self.comp_time[self.iteration-1] = T
         if self.settings['Integration']['savestate'] == True:
-            np.save(self.settings['Integration']['savefile'] +'_tcomp', self.comp_time)
+            np.save(self.settings['Integration']['savefile'] +'_tcomp' + self.namesave, self.comp_time)
 
 
         # Display information at each step
@@ -199,8 +199,8 @@ class ClusterEnv(gym.Env):
         # if self.window is not None:
         #     pygame.display.quit()
         #     pygame.quit()
-        # plot_trajectory(self.settings)
         self.gravity.stop()
+        plot_trajectory(self.settings, self.namesave)
 
     def calculate_angular_m(self, particles):
         """
@@ -232,17 +232,18 @@ class ClusterEnv(gym.Env):
                                  info[0],\
                                  np.linalg.norm(info[1])))
         
-    def _savestate(self, action, step, bodies, E, L):
+    def _savestate(self, action, step, bodies, E, L, t):
         self.state[step, :, 0] = action
         self.state[step, :, 1] = bodies.mass.value_in(self.units_m)
         self.state[step, :, 2:5] = bodies.position.value_in(self.units_l)
         self.state[step, :, 5:] = bodies.velocity.value_in(self.units_l/self.units_t)
         self.cons[step, 0] = action
         self.cons[step, 1] = E
-        self.cons[step, 2:] = L
+        self.cons[step, 2:5] = L
+        self.cons[step, 5] = t
 
-        np.save(self.settings['Integration']['savefile'] +'_state', self.state)
-        np.save(self.settings['Integration']['savefile'] +'_cons', self.cons)
+        np.save(self.settings['Integration']['savefile'] +'_state'+ self.namesave, self.state)
+        np.save(self.settings['Integration']['savefile'] +'_cons'+ self.namesave, self.cons)
 
 def load_json(filepath):
     """
@@ -253,17 +254,51 @@ def load_json(filepath):
     jsonFile.close()
     return data
 
-# Test environment
-# settings = load_json("./settings.json")
-# a = ClusterEnv(settings = settings)
-# value = [0,1,1,0,0,1,0,0,0,0,1,1,1,0]
-# # value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-# terminated = False
-# i = 0
-# a.reset()
-# while terminated == False:
-#     x, y, terminated, zz = a.step(value[i%len(value)])
-#     i += 1
+def test_environment(value, name):
+    # Test environment
+    # settings = load_json("./settings.json")
+    a = TimeSteppingEnv(namesave = name)
+    value = [0,1,1,3,2,4,0,1,4,2,1,0,3,3]
+    # value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    terminated = False
+    i = 0
+    a.reset()
+    while terminated == False:
+        x, y, terminated, zz = a.step(value[i%len(value)])
+        i += 1
 
-# a.close()
+    # a.close()
+
+def load_trajectory(name):
+    state = np.load("./TimeStep/Timestepping/simulations/state_state"+name+'.npy')
+    cons = np.load("./TimeStep/Timestepping/simulations/state_cons"+name+'.npy')
+    tcomp = np.load("./TimeStep/Timestepping/simulations/state_tcomp"+name+'.npy')
+    return state, cons, tcomp
+
+# def plot_comparison(state1, state2, state3):
+#     plt.plot()
+def plot_error(cons):
+    for i in range(len(cons)):
+        E = (cons[i][:, 1] - cons[i][0, 1]) 
+        plt.plot(cons[i][:, -1], E)
+    plt.show()
+
+# Simulate
+value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+test_environment(value, '_1')
+value = [4,4,4,4,4,4,4,4,4,4,4,4,4,4]
+test_environment(value, '_2')
+value = [0,1,1,3,2,4,0,1,4,2,1,0,3,3]
+test_environment(value, '_3')
+
+state1, cons1, tcomp1 = load_trajectory('_1')
+state2, cons2, tcomp2 = load_trajectory('_2')
+state3, cons3, tcomp3 = load_trajectory('_3')
+
+plot_error([cons1, cons2, cons3])
+
+
+    
+
+
 

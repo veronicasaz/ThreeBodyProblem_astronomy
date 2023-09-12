@@ -7,8 +7,8 @@ import json
 
 from amuse.units import units, constants, nbody_system
 from amuse.ic.kingmodel import new_king_model
-from amuse.community.hermite.interface import Hermite
-from amuse.community.bhtree.interface import BHTree
+from amuse.community.symple.interface import symple
+from amuse.ext.solarsystem import new_solar_system
 
 from plots import plot_state, plot_trajectory
 
@@ -16,15 +16,17 @@ from plots import plot_state, plot_trajectory
 """
 https://www.gymlibrary.dev/content/environment_creation/
 """
+def orbital_period(G, a, Mtot):
+    return 2*np.pi*(a**3/(constants.G*Mtot)).sqrt()
 
-class ClusterEnv(gym.Env):
+class IntegrateEnv(gym.Env):
     def __init__(self, render_mode = None, bodies = 4):
         self.size = 4*bodies
         self.settings = load_json("./settings.json")
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
-        self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['integrators']))
+        self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['integrators'])) # TODO: vector for timestep
         self.W = self.settings['Training']['weights']
     
     # def _convert_units(self, converter, bodies, G):
@@ -32,20 +34,14 @@ class ClusterEnv(gym.Env):
     #     print(bodies.position)
 
     def _initial_conditions(self, seed):
-        #TODO: setup intial conditions
         self.n_stars = self.settings['Integration']['bodies']
-        if self.settings['Integration']['masses'] == 'equal':
-            m_stars = np.ones(self.n_stars)/ self.n_stars # sum of masses is 1
-        elif self.settings['Integration']['masses'] == 'equal_sun':
-            m_stars = np.ones(self.n_stars) # each particle is 1 MSun
-        else:
-            m_stars = np.ones(self.n_stars) * self.settings['Integration']['masses']
+        self.settings['Integration']['masses']
 
-        r_cluster = self.settings['Integration']['r_cluster'] | units.au
-        self.converter = nbody_system.nbody_to_si(m_stars.sum() | units.MSun, r_cluster)
-        W0 = 3
+        bodies = new_solar_system()
+
+        self.converter = nbody_system.nbody_to_si(bodies.masses.sum(), 1 | units.au)
+        
         if self.settings['Integration']['units'] == 'si':
-            bodies = new_king_model(self.n_stars, W0, self.converter)
             bodies.scale_to_standard(convert_nbody=self.converter)
             self.G = constants.G
             self.units_G = units.m**3 * units.kg**(-1) * units.s**(-2)
@@ -54,8 +50,8 @@ class ClusterEnv(gym.Env):
             self.units_t = units.s 
             self.units_l = units.m
             self.units_m = units.kg
+
         elif self.settings['Integration']['units'] == 'nbody':
-            bodies = new_king_model(self.n_stars, W0)
             self.G = self.converter.to_nbody(constants.G)
             self.units_G = nbody_system.length**3 * nbody_system.mass**(-1) * nbody_system.time**(-2)
             self.units_energy = nbody_system.length**2 * nbody_system.time**(-2)* nbody_system.mass
@@ -84,12 +80,10 @@ class ClusterEnv(gym.Env):
         Delta_L = L
         return Delta_E, Delta_L
     
-    def _get_integrator(self, index):
-        if self.settings['Integration']['integrators'][index] == 'BHTree':             
-            integrator = BHTree
-        elif self.settings['Integration']['integrators'][index] == 'Hermite':             
-            integrator = Hermite
-        return integrator
+    # def _get_integrator(self, index):
+    #     integrator = self.settings['Integration']['integrators'][index]
+    #     # gravity.parameters.timestep = (1./128)*Pin_0
+    #     return integrator
     
     def _strip_units(self, particles): #TODO
         state = np.zeros(())
@@ -102,8 +96,10 @@ class ClusterEnv(gym.Env):
         self.particles = self._initial_conditions(seed)
 
         # Initialize basic integrator and add particles
-        integrator = self._get_integrator(0)
-        self.gravity = integrator()
+        self.gravity = symple(self.converter)
+        self.gravity.parameters.integrator = self.self.settings['Integration']['integrators'][0]
+        self.gravity.parameters.timestep = 1e-4
+
         self.previous_int = self.settings['Integration']['integrators'][0]
 
         self.gravity.particles.add_particles(self.particles)
