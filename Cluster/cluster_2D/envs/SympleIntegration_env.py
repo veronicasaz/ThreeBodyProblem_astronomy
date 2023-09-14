@@ -9,6 +9,9 @@ from amuse.units import units, constants, nbody_system
 from amuse.ic.kingmodel import new_king_model
 from amuse.community.symple.interface import symple
 from amuse.ext.solarsystem import new_solar_system
+from amuse.ext.orbital_elements import  generate_binaries
+
+from pyDOE import lhs
 
 from plots import plot_state, plot_trajectory
 
@@ -33,11 +36,37 @@ class IntegrateEnv(gym.Env):
     #     bodies.position = converter.to_nbody(bodies.position)
     #     print(bodies.position)
 
+    def _add_bodies(self, bodies):
+        n_bodies = self.settings['Integration']['bodies']
+        ranges = self.settings['Integration']['ranges']
+
+        K = lhs(len(ranges), samples = n_bodies) * (ranges[:, 1]- ranges[:, 0]) + ranges[:, 0] 
+
+        print(K)
+        for i in range(n_bodies):
+            sun, particle = generate_binaries(
+            bodies[bodies.name=='sun'].mass,
+            K[i, 0] | units.MSun,
+            K[i, 1] | units.au,
+            eccentricity = K[i, 2],
+            inclination = K[i, 3],
+            longitude_of_the_ascending_node = K[i, 5],
+            argument_of_periapsis = K[i, 4],
+            true_anomaly= K[i, 5],
+            G = constants.G)
+
+            bodies.add_particles(particle, name = "Particle_%i"%i)
+        
+        return bodies
+
+
     def _initial_conditions(self, seed):
-        self.n_stars = self.settings['Integration']['bodies']
+        self.n_bodies = self.settings['Integration']['bodies']
         self.settings['Integration']['masses']
 
         bodies = new_solar_system()
+        bodies = self._add_bodies(bodies)
+        print(bodies)
 
         self.converter = nbody_system.nbody_to_si(bodies.masses.sum(), 1 | units.au)
         
@@ -120,7 +149,7 @@ class IntegrateEnv(gym.Env):
         if self.settings['Integration']['savestate'] == True:
             steps = (self.settings['Integration']['check_step']) * \
                     self.settings['Integration']['max_steps']
-            self.state = np.zeros((steps, self.n_stars, 8)) # action, mass, rx3, vx3, 
+            self.state = np.zeros((steps, self.n_bodies, 8)) # action, mass, rx3, vx3, 
             self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
             self.comp_time = np.zeros((self.settings['Integration']['max_steps'], 1)) # computation time
             self._savestate(0, 0, self.particles, self.E_0, self.L_0) # save initial state
@@ -213,10 +242,10 @@ class IntegrateEnv(gym.Env):
     def calculate_energy(self): # not needed, verified with amuse
         ke = 0
         pe = 0
-        for i in range(0, self.n_stars):
+        for i in range(0, self.n_bodies):
             body1 = self.particles[i]
             ke += 0.5 * body1.mass.value_in(self.units_m) * np.linalg.norm(body1.velocity.value_in(self.units_l/self.units_t))**2
-            for j in range(i+1, self.n_stars):
+            for j in range(i+1, self.n_bodies):
                 body2 = self.particles[j]
                 pe -= self.G.value_in(self.units_G) * body1.mass.value_in(self.units_m) * body2.mass.value_in(self.units_m) / \
                     np.linalg.norm(body2.position.value_in(self.units_l) - body1.position.value_in(self.units_l))
@@ -251,15 +280,15 @@ def load_json(filepath):
 
 # Test environment
 # settings = load_json("./settings.json")
-# a = ClusterEnv(settings = settings)
+a = IntegrateEnv()
 # value = [0,1,1,0,0,1,0,0,0,0,1,1,1,0]
-# # value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-# terminated = False
-# i = 0
-# a.reset()
-# while terminated == False:
-#     x, y, terminated, zz = a.step(value[i%len(value)])
-#     i += 1
+value = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+terminated = False
+i = 0
+a.reset()
+while terminated == False:
+    x, y, terminated, zz = a.step(value[i%len(value)])
+    i += 1
 
-# a.close()
+a.close()
 

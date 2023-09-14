@@ -5,13 +5,21 @@
        "savestate": true,
        "units": "si",
        "bodies": 10, 
-       "masses": 0.1,
        "max_steps": 10,
        "check_step": 1,
        "t_step": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1], 
        "order": [1, 2, 3, 5, 10 ],
        "seed": 1234,
-       "plot": false
+       "plot": false,
+       "ranges": {
+          "m": [1e-8, 1e-5],
+          "a": [1, 10], 
+          "e": [0.0, 0.7], 
+          "i": [0.0, 10],
+          "omega": [0, 360] ,
+          "Omega": [0, 360],
+          "TA": [0, 360]
+       },
      },
     "Training":
     {
