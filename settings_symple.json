@@ -1,14 +1,15 @@
 {
+    "actions": "mixed",
     "Integration":
     {
-       "savefile": "./state",
+       "savefile": "./SympleIntegration_runs/state",
        "savestate": true,
        "units": "si",
-       "bodies": 10, 
+       "bodies": 2, 
        "max_steps": 10,
-       "check_step": 1,
-       "t_step": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1], 
-       "order": [1, 2, 3, 5, 10 ],
+       "check_step": 1e-7,
+       "t_step": [1e-12, 1e-11, 1e-10], 
+       "order": [1, 2, 3, 5, 10],
        "seed": 1234,
        "plot": false,
        "ranges": {
@@ -19,7 +20,7 @@
           "omega": [0, 360] ,
           "Omega": [0, 360],
           "TA": [0, 360]
-       },
+       }
      },
     "Training":
     {
