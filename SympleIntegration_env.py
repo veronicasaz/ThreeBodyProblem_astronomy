@@ -38,6 +38,7 @@ class IntegrateEnv(gym.Env):
                                                 dtype=np.float64)
         self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['order'])) # TODO: vector for timestep
         self.W = self.settings['Training']['weights']
+        self.seed_initial = self.settings['Integration']['seed']
 
         self.suffix = suffix # added info for saving files
     
@@ -64,6 +65,7 @@ class IntegrateEnv(gym.Env):
         ranges = self.settings['Integration']['ranges']
         ranges_np = np.array(list(ranges.values()))
 
+        np.random.seed(seed = self.seed_initial)
         K = lhs(len(ranges), samples = n_bodies) * (ranges_np[:, 1]- ranges_np[:, 0]) + ranges_np[:, 0] 
 
         for i in range(n_bodies):
@@ -88,7 +90,7 @@ class IntegrateEnv(gym.Env):
         return bodies
 
 
-    def _initial_conditions(self, seed):
+    def _initial_conditions(self):
         # self.settings['Integration']['masses']
 
         bodies = new_solar_system()
@@ -165,10 +167,9 @@ class IntegrateEnv(gym.Env):
         return g 
     
     def reset(self, options = None):
-        seed = self.settings['Integration']['seed']
         # super().reset(seed=seed) # We need to seed self.np_random
 
-        self.particles = self._initial_conditions(seed)
+        self.particles = self._initial_conditions()
 
         # Initialize basic integrator and add particles
         if self.settings['actions'] == 'mixed':
@@ -202,7 +203,7 @@ class IntegrateEnv(gym.Env):
             steps = self.settings['Integration']['max_steps']
             self.state = np.zeros((steps, self.n_bodies, 8)) # action, mass, rx3, vx3, 
             self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
-            self.comp_time = np.zeros((self.settings['Integration']['max_steps'], 1)) # computation time
+            self.comp_time = np.zeros(self.settings['Integration']['max_steps']) # computation time
             self._savestate(0, 0, self.particles, self.E_0, self.L_0) # save initial state
 
         return state, [self.E_0, self.L_0]
@@ -325,16 +326,18 @@ class IntegrateEnv(gym.Env):
     def loadstate(self):
         state = np.load(self.settings['Integration']['savefile'] +'_state'+ self.suffix+'.npy')
         cons = np.load(self.settings['Integration']['savefile'] +'_cons'+ self.suffix+'.npy')
-        return state, cons
+        tcomp = np.load(self.settings['Integration']['savefile'] +'_tcomp'+ self.suffix+'.npy')
+        return state, cons, tcomp
 
     def plot_orbit(self):
-        state, cons = self.loadstate()
+        state, cons, tcomp = self.loadstate()
 
         n_bodies = np.shape(state)[1]
 
         for i in range(n_bodies):
             plt.plot(state[:, i, 2], state[:, i, 3], marker= 'o', label = self.names[i])
         plt.legend()
+        plt.savefig(a.settings['Integration']['savefile'] + '_cartplot.png', dpi = 100)
         plt.show()
 
         
@@ -370,18 +373,20 @@ def run_many_symple_cases(values):
 
 def evaluate_many_symple_cases(values, \
                         plot_tstep = True, \
-                        plot_grid = True):
+                        plot_grid = True,
+                        plot_errorvstime = True):
     cases = len(values)
     a = IntegrateEnv()
 
     # Load run information
     state = list()
     cons = list()
+    tcomp = list()
     for i in range(cases):
         a.suffix = ('_case%i'%i)
         state.append(a.loadstate()[0])
         cons.append(a.loadstate()[1])
-
+        tcomp.append(a.loadstate()[2])
 
     bodies = len(state[0][0,:,0])
     steps = len(cons[0][:,0])
@@ -396,27 +401,31 @@ def evaluate_many_symple_cases(values, \
     # baseline = cons[4] # Take highest order as a baseline
     E_E = np.zeros((steps, cases))
     E_M = np.zeros((steps, cases))
+    T_c = np.zeros((steps, cases))
     for i in range(cases):
         # E_E[:, i] = abs((cons[i][:, 1] - cons[i][0, 1])/ cons[i][0, 1]) # absolute relative energy error
         # E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:])/ cons[i][0, 2:], axis = 1) # relative angular momentum error
         E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
         E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
+        T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
 
 
     # plot
     colors = ['red', 'green', 'blue', 'orange', 'grey', 'yellow', 'black']
     lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
+    markers = ['o', 'x', '.', '^', 's']
     # labels = ['Order 1', 'Order 2', 'Order 3', 'Order 5', 'Order 10', 'Mixed order']
     n_order_cases = len(a.settings['Integration']['order'])
     n_tstep_cases = len(a.settings['Integration']['t_step'])
 
     if plot_tstep == True:
-        fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
+        fig, ax = plt.subplots(3, 1, layout = 'constrained', figsize = (10, 10))
         x_axis = np.arange(0, steps, 1)
 
         for i in range(cases):
             ax[0].plot(x_axis, E_E[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
             ax[1].plot(x_axis, E_M[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
+            ax[2].plot(x_axis, T_c[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
 
         labelsize = 20
         ax[0].legend(loc='upper right')
@@ -426,6 +435,7 @@ def evaluate_many_symple_cases(values, \
         for pl in range(len(ax)):
             ax[pl].set_yscale('log')
             ax[pl].tick_params(axis='both', which='major', labelsize=labelsize)
+        plt.savefig('./SympleIntegration_runs/Symple_comparison.png', dpi = 100)
         plt.show()
     
     if plot_grid == True:
@@ -451,18 +461,43 @@ def evaluate_many_symple_cases(values, \
         ax[0].set_title("Final Energy error", fontsize = labelsize)
         ax[1].set_ylabel('t_step', fontsize = labelsize)
         ax[1].set_xlabel('Order', fontsize = labelsize)
-        ax[0].set_title("Final Angular momentum error", fontsize = labelsize)
+        ax[1].set_title("Final Angular momentum error", fontsize = labelsize)
         for pl in range(len(ax)):
             ax[pl].set_yscale('log')
             ax[pl].tick_params(axis='both', which='major', labelsize=labelsize)
+        plt.savefig('./SympleIntegration_runs/Symple_comparison2.png', dpi = 100)
         plt.show()
 
-def test_1_case():
+    if plot_errorvstime == True:
+        fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
+
+        for i in range(cases-1): #Excluding the case with the mixed actions
+            ax[0].scatter(E_E[-1, i], T_c[-1, i], marker = markers[i//n_tstep_cases], color = colors[i%n_tstep_cases], s = 100, label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
+            ax[1].scatter(E_M[-1, i], T_c[-1, i], marker = markers[i//n_tstep_cases], color = colors[i%n_tstep_cases], s = 100, label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
+
+        # sm = ax[1].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
+        #                 s = 500, c = E_M[-1,:-1], cmap = 'RdYlBu', \
+        #                     norm=matplotlib.colors.LogNorm())
+        labelsize = 20
+        ax[0].legend(loc='upper right')
+        ax[0].set_xlabel('Final Energy Error',  fontsize = labelsize)
+        # ax[0].set_title("Final Energy error", fontsize = labelsize)
+        ax[1].set_xlabel('Final Angular momentum Error', fontsize = labelsize)
+        # ax[1].set_title("Final Angular momentum error", fontsize = labelsize)
+        for pl in range(len(ax)):
+            ax[pl].set_yscale('log')
+            ax[pl].set_xscale('log')
+            ax[pl].set_ylabel('t_comp (s)',  fontsize = labelsize)
+
+            ax[pl].tick_params(axis='both', which='major', labelsize=labelsize)
+        plt.savefig('./SympleIntegration_runs/Symple_comparison3.png', dpi = 100)
+        plt.show()
+
+def test_1_case(value):
     a = IntegrateEnv()
     terminated = False
     i = 0
     a.reset()
-    value = values[0]
     print(value)
 
     while terminated == False:
@@ -481,12 +516,13 @@ for i in range(len(a.actions)):
 
 # values = values[0:4]
 values.append(np.random.randint(0, len(a.actions), size = steps))
-# run_many_symple_cases(values)
+run_many_symple_cases(values)
 evaluate_many_symple_cases(values, \
-                           plot_tstep = False, \
-                           plot_grid = True)
+                           plot_tstep = True, \
+                           plot_grid = True,\
+                           plot_errorvstime = True)
 
-# test_1_case()
+# test_1_case(values[9])
 
 
 
