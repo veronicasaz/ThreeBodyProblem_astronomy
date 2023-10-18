@@ -16,12 +16,15 @@ from itertools import count
 
 from helpfunctions import load_json
 # """
-# https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/
+# https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/https://www.gymlibrary.dev/content/environment_creation/
+# https://www.gymlibrary.dev/content/environment_creation/
 # https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
+# https://towardsdatascience.com/reinforcement-learning-explained-visually-part-5-deep-q-networks-step-by-step-5a5317197f4b
 # """
 
 # Environment
-env = gym.make('cluster_2D:Cluster2D-v0') # example of how to create the env once it's been registered
+# env = gym.make('cluster_2D:Cluster2D-v0') # example of how to create the env once it's been registered
+env = gym.make('cluster_2D:SympleInt-v0') # example of how to create the env once it's been registered
 env.reset() # Resets the environment and returns a random initial state
 
 # if GPU is to be used
@@ -45,7 +48,7 @@ if is_ipython:
 
 # print("END", rewards, penalties)
 ################################################################################
-settings = load_json("./settings.json")
+settings = load_json("./settings_symple.json")
 
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -69,15 +72,16 @@ class DQN(nn.Module):
 
     def __init__(self, n_observations, n_actions):
         super(DQN, self).__init__()
-        self.layer1 = nn.Linear(n_observations, 128)
-        self.layer2 = nn.Linear(128, 128)
-        self.layer3 = nn.Linear(128, n_actions)
+        self.layer1 = nn.Linear(n_observations, settings['Training']['neurons'])
+        self.layer2 = nn.Linear(settings['Training']['neurons'], settings['Training']['neurons'])
+        self.layer3 = nn.Linear(settings['Training']['neurons'], n_actions)
 
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
     def forward(self, x):
         x = F.relu(self.layer1(x))
-        x = F.relu(self.layer2(x))
+        for i in range(settings['Training']['hidden_layers']):
+            x = F.relu(self.layer2(x))
         return self.layer3(x)
     
 # TRAINING
@@ -94,10 +98,11 @@ EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
 TAU = 0.005
-LR = 1e-4
+LR = settings['Training']['lr']
 
 # Get number of actions from gym action space
 n_actions = env.action_space.n
+# env.settings['Integration']['seed'] = None # random seed
 # Get the number of state observations
 state, info = env.reset()
 n_observations = len(state)
@@ -129,7 +134,7 @@ def select_action(state):
 
 episode_rewards = []
 
-def plot_durations(episode_rewards, show_result=False):
+def plot_durations(episode_rewards, episode, show_result=False):
     plt.figure(1)
     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
     if show_result:
@@ -140,6 +145,9 @@ def plot_durations(episode_rewards, show_result=False):
     plt.xlabel('Episode')
     plt.ylabel('Reward')
     plt.plot(rewards_t.numpy())
+    plt.yscale('symlog', linthresh = 1e-10)
+    if episode %50 == 0:
+        plt.savefig('./SympleIntegration_training/reward_progress_%i'%episode)
     # plt.close()
 
     # Take 100 episode averages and plot them too
@@ -246,12 +254,12 @@ for i_episode in range(settings['Training']['max_iter']):
 
         if done:
             episode_rewards.append(reward_p)
-            plot_durations(episode_rewards)
+            plot_durations(episode_rewards, i_episode)
             break
     env.close()
 
 print('Complete')
-plot_durations(episode_rewards, show_result=True)
+plot_durations(episode_rewards, i_episode, show_result=True)
 plt.ioff()
 plt.show()
 # for i in range(1, settings['Training']['max_iter']):
