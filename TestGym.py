@@ -145,7 +145,8 @@ def plot_durations(episode_rewards, episode, show_result=False):
     plt.xlabel('Episode')
     plt.ylabel('Reward')
     plt.plot(rewards_t.numpy())
-    plt.yscale('symlog', linthresh = 1e-10)
+    plt.yscale('symlog', linthresh = 1e-4)
+    plt.xscale('log')
     if episode %50 == 0:
         plt.savefig('./SympleIntegration_training/reward_progress_%i'%episode)
     # plt.close()
@@ -252,8 +253,9 @@ for i_episode in range(settings['Training']['max_iter']):
             target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
         target_net.load_state_dict(target_net_state_dict)
 
+        episode_rewards.append(reward_p)
         if done:
-            episode_rewards.append(reward_p)
+            
             plot_durations(episode_rewards, i_episode)
             break
     env.close()

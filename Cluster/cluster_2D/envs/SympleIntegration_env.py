@@ -145,7 +145,7 @@ class IntegrateEnv(gym.Env):
         E_pot = self.gravity.particles.potential_energy(G = self.G).value_in(self.units_energy)
         L = self.calculate_angular_m(self.gravity.particles)
         # Delta_E = E_kin + E_pot - self.E_0
-        Delta_E = (E_kin + E_pot - self.E_0) / self.E_0
+        Delta_E = abs((E_kin + E_pot - self.E_0) / self.E_0)
         # Delta_L = L - self.L_0
         Delta_L = (L - self.L_0) / self.L_0
         return Delta_E, Delta_L
@@ -221,7 +221,7 @@ class IntegrateEnv(gym.Env):
         # take the energy error made from previous time step, not cumulative
         Delta_E, Delta_O = info
         Delta_E_prev, Delta_O_prev = info_prev
-        return -(W[0]*(Delta_E-Delta_E_prev) +\
+        return -(W[0]*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
                   W[1]*np.linalg.norm(Delta_O) +\
                   W[2]*T) 
     
