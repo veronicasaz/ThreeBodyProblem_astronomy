@@ -24,12 +24,19 @@
      },
     "Training":
     {
+    	"savemodel": "./SympleIntegration_training/",
     	"display": true,
         "weights": [1.0, 0.0, 0.0e-3],
         "max_iter": 5000,
         "hidden_layers": 2,
         "neurons": 50,
-        "lr": 5e-5
+        "lr": 5e-5,
+        "batch_size": 128,
+        "gamma": 0.99,
+        "eps_start": 0.9,
+        "eps_end": 0.05,
+        "eps_decay": 1000,
+        "tau": 0.005
     }
 }
 

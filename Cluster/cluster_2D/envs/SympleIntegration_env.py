@@ -221,9 +221,16 @@ class IntegrateEnv(gym.Env):
         # take the energy error made from previous time step, not cumulative
         Delta_E, Delta_O = info
         Delta_E_prev, Delta_O_prev = info_prev
-        return -(W[0]*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
-                  W[1]*np.linalg.norm(Delta_O) +\
-                  W[2]*T) 
+        if Delta_E_prev == 0.0:
+            return -(W[0]*(np.log(Delta_E)) +\
+                W[1]*np.linalg.norm(Delta_O) +\
+                W[2]*T) 
+        else:
+            return -(W[0]*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
+                    W[1]*np.linalg.norm(Delta_O) +\
+                    W[2]*T) 
+        # return -(W[0]*abs(Delta_E-Delta_E_prev)*np.log(abs(Delta_E-Delta_E_prev)) +\
+                 
     
     def step(self, action):
 
