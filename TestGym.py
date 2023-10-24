@@ -3,6 +3,7 @@ from IPython.display import clear_output
 import gym
 import torch
 
+import matplotlib.pyplot as plt
 import matplotlib
 import torch.optim as optim
 
@@ -75,19 +76,23 @@ if torch.cuda.is_available():
 else:
     num_episodes = 50
 
+save_reward = list()
+
 # Training loop
 for i_episode in range(settings['Training']['max_iter']):
     print("Training episode: %i"%i_episode)
     # Initialize the environment and get it's state
     state, info = env.reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+    save_reward_list = list()
     for t in range(settings['Integration']['max_steps']):
         action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
         observation, reward_p, terminated, info = env.step(action.item())
         # reward += reward_p # TODO: is this correct? otherwise rewards are not related
+        save_reward_list.append(reward_p)
+
         reward = torch.tensor([reward_p], device=device)
         done = terminated 
-
         if terminated:
             next_state = None
         else:
@@ -115,12 +120,18 @@ for i_episode in range(settings['Training']['max_iter']):
 
         episode_rewards.append(reward_p)
         if done:
-            
             plot_durations(episode_rewards, i_episode)
             break
     env.close()
+    save_reward.append(save_reward_list)
     
-    torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights.pth')
+    torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights.pth') # save model
+    # save training
+    with open(env.settings['Training']['savemodel']+"rewards.txt", "w") as f:
+        for ss in save_reward:
+            for s in ss:
+                f.write(str(s) +" ")
+            f.write("\n")
 
 print('Complete')
 plot_durations(episode_rewards, i_episode, show_result=True)

@@ -66,7 +66,7 @@ class IntegrateEnv(gym.Env):
         ranges = self.settings['Integration']['ranges']
         ranges_np = np.array(list(ranges.values()))
 
-        if self.seed_initial != None:
+        if self.seed_initial != "None":
             np.random.seed(seed = self.seed_initial)
         K = lhs(len(ranges), samples = n_bodies) * (ranges_np[:, 1]- ranges_np[:, 0]) + ranges_np[:, 0] 
 

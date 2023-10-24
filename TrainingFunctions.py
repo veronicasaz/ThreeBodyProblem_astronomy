@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from scipy.signal import savgol_filter
+
 import random
 import matplotlib
 import matplotlib.pyplot as plt
@@ -63,6 +65,10 @@ def select_action(state, policy_net, Eps, env, device, steps_done):
 
 
 def plot_durations(episode_rewards, episode, show_result=False):
+    """
+    https://www.linkedin.com/advice/0/how-do-you-evaluate-performance-robustness-your-reinforcement:
+    cumulative reward, the average reward per episode, the number of steps per episode, or the success rate over time.
+    """
     plt.figure(1)
     rewards_t = torch.tensor(episode_rewards, dtype=torch.float)
     if show_result:
@@ -75,11 +81,59 @@ def plot_durations(episode_rewards, episode, show_result=False):
     x = np.arange(len(rewards_t.numpy()))
     plt.scatter(x, rewards_t.numpy())
     plt.yscale('symlog', linthresh = 1e-4)
-    plt.xscale('log')
+    # plt.xscale('log')
     if episode %50 == 0:
         plt.savefig('./SympleIntegration_training/reward_progress_%i'%episode)
 
 
+def load_reward(a):
+    score = []
+    with open(a.settings['Training']['savemodel'] + "rewards.txt", "r") as f:
+        # for line in f:
+        for y in f.read().split('\n'):
+            score_r = list()
+            for j in y.split():
+                score_r.append(float(j))
+            score.append(score_r)
+
+    return score
+
+def plot_reward(a, reward):
+    episodes = len(reward)
+    x_episodes = np.arange(episodes)
+
+    steps_perepisode = np.zeros(episodes)
+    cumul_reward_perepisode = np.zeros(episodes)
+    reward_flat = list()
+
+    for i in range(episodes):
+        steps_perepisode[i] = len(reward[i])
+        cumul_reward_perepisode[i] = sum(reward[i])
+        reward_flat = reward_flat + reward[i][1:]
+
+    x_all = np.arange(len(reward_flat))
+    
+    f, ax = plt.subplots(3, 1)
+    ax[0].plot(x_episodes, steps_perepisode, color = 'darkblue', alpha = 0.5)
+    yy = savgol_filter(np.ravel(steps_perepisode), 101, 2)
+    ax[0].plot(x_episodes, yy, color = 'darkblue')
+    ax[0].set_xlabel('Episodes')
+    ax[0].set_ylabel('Steps per episode')
+
+    ax[1].plot(x_episodes, cumul_reward_perepisode, color = 'darkblue', alpha = 0.5)
+    yy = savgol_filter(cumul_reward_perepisode, 101, 2)
+    ax[1].plot(x_episodes, yy, color = 'darkblue')
+    ax[1].set_xlabel('Episodes')
+    ax[1].set_ylabel('Cumulative reward')
+
+    ax[2].plot(x_all, reward_flat, color = 'darkblue', alpha = 0.5)
+    yy = savgol_filter(np.ravel(reward_flat), 101, 2)
+    ax[2].plot(x_all, yy, color = 'darkblue')
+    ax[2].set_xlabel('Steps')
+    ax[2].set_ylabel('Reward')
+
+    plt.savefig(a.settings['Training']['savemodel']+'_cumulative_reward.png', dpi = 100)
+    plt.show()
 
 def optimize_model(policy_net, target_net, memory, \
                    Transition, device, GAMMA, BATCH_SIZE,\
