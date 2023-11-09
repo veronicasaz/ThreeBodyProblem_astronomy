@@ -77,6 +77,7 @@ else:
     num_episodes = 50
 
 save_reward = list()
+save_EnergyE = list()
 
 # Training loop
 for i_episode in range(settings['Training']['max_iter']):
@@ -85,11 +86,19 @@ for i_episode in range(settings['Training']['max_iter']):
     state, info = env.reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     save_reward_list = list()
+    save_EnergyE_list = list()
+
+    # Do first step without updating the networks
+    action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
+    observation, reward_p, terminated, info = env.step(action.item())
+
     for t in range(settings['Integration']['max_steps']):
         action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
         observation, reward_p, terminated, info = env.step(action.item())
         # reward += reward_p # TODO: is this correct? otherwise rewards are not related
+        
         save_reward_list.append(reward_p)
+        save_EnergyE_list.append(info['Energy_error'])
 
         reward = torch.tensor([reward_p], device=device)
         done = terminated 
@@ -120,15 +129,22 @@ for i_episode in range(settings['Training']['max_iter']):
 
         episode_rewards.append(reward_p)
         if done:
-            plot_durations(episode_rewards, i_episode)
+            # plot_durations(episode_rewards, i_episode)
             break
     env.close()
     save_reward.append(save_reward_list)
+    save_EnergyE.append(save_EnergyE_list)
     
     torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights.pth') # save model
     # save training
     with open(env.settings['Training']['savemodel']+"rewards.txt", "w") as f:
         for ss in save_reward:
+            for s in ss:
+                f.write(str(s) +" ")
+            f.write("\n")
+
+    with open(env.settings['Training']['savemodel']+"EnergyError.txt", "w") as f:
+        for ss in save_EnergyE:
             for s in ss:
                 f.write(str(s) +" ")
             f.write("\n")

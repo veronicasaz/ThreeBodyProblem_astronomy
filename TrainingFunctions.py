@@ -96,20 +96,37 @@ def load_reward(a):
                 score_r.append(float(j))
             score.append(score_r)
 
-    return score
+    EnergyE = []
+    with open(a.settings['Training']['savemodel'] + "EnergyError.txt", "r") as f:
+        # for line in f:
+        for y in f.read().split('\n'):
+            Energy_r = list()
+            for j in y.split():
+                Energy_r.append(float(j))
+            EnergyE.append(score_r)
 
-def plot_reward(a, reward):
+    return score, EnergyE
+
+def plot_reward(a, reward, Eerror):
     episodes = len(reward)
     x_episodes = np.arange(episodes)
 
     steps_perepisode = np.zeros(episodes)
     cumul_reward_perepisode = np.zeros(episodes)
     reward_flat = list()
+    energyerror_flat = list()
+    episode_end_list = list()
 
     for i in range(episodes):
         steps_perepisode[i] = len(reward[i])
         cumul_reward_perepisode[i] = sum(reward[i])
         reward_flat = reward_flat + reward[i][1:]
+        try:
+            energyerror_flat = energyerror_flat + Eerror[i][1:]
+        except:
+            energyerror_flat = energyerror_flat + [0]
+        if len(reward[i][1:])>0:
+            episode_end_list = episode_end_list + [1] + [0]*(len(reward[i][1:])-1)
 
     x_all = np.arange(len(reward_flat))
     
@@ -120,15 +137,18 @@ def plot_reward(a, reward):
     ax[0].set_xlabel('Episodes')
     ax[0].set_ylabel('Steps per episode')
 
-    ax[1].plot(x_episodes, cumul_reward_perepisode, color = 'darkblue', alpha = 0.5)
-    yy = savgol_filter(cumul_reward_perepisode, 101, 2)
-    ax[1].plot(x_episodes, yy, color = 'darkblue')
-    ax[1].set_xlabel('Episodes')
-    ax[1].set_ylabel('Cumulative reward')
+    # ax[1].plot(x_all, energyerror_flat, color = 'darkblue', alpha = 0.5)
+    # yy = savgol_filter(energyerror_flat, 101, 2)
+    # ax[1].plot(x_episodes, yy, color = 'darkblue')
+    ax[1].set_xlabel('Steps')
+    ax[1].set_ylabel('Energy Error')
 
     ax[2].plot(x_all, reward_flat, color = 'darkblue', alpha = 0.5)
     yy = savgol_filter(np.ravel(reward_flat), 101, 2)
     ax[2].plot(x_all, yy, color = 'darkblue')
+
+    index = np.where(np.array(episode_end_list) == 1)[0]
+    ax[2].scatter(x_all[index], yy[index], c = 'r', marker= '.')
     ax[2].set_xlabel('Steps')
     ax[2].set_ylabel('Reward')
 

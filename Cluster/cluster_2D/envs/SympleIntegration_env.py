@@ -36,14 +36,14 @@ class IntegrateEnv(gym.Env):
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
-        self.action_space = gym.spaces.Discrete(len(self.settings['Integration']['order'])) # TODO: vector for timestep
+        self._create_actions()
+        self.action_space = gym.spaces.Discrete(len(self.actions)) 
         self.W = self.settings['Training']['weights']
 
         self.seed_initial = self.settings['Integration']['seed']
 
         self.suffix = suffix # added info for saving files
     
-        self._create_actions()
     # def _convert_units(self, converter, bodies, G):
     #     bodies.position = converter.to_nbody(bodies.position)
     #     print(bodies.position)
@@ -151,11 +151,21 @@ class IntegrateEnv(gym.Env):
         return Delta_E, Delta_L
     
     def _get_state(self, particles): 
+        """
+        Excluding the sun
+        """
         # state is the position magnitude of each particle? 
-        state = np.zeros(self.n_bodies*2) # all r, all v
+        state = np.zeros((self.n_bodies)*3) # m, all r, all v
         # for i in range(self.n_bodies):
-        state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
-        state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
+        particles_p_nbody = self.converter.to_generic(particles.position).value_in(nbody_system.length)
+        particles_v_nbody = self.converter.to_generic(particles.velocity).value_in(nbody_system.length/nbody_system.time)
+        particles_m_nbody = self.converter.to_generic(particles.mass).value_in(nbody_system.mass)
+
+        state[0:self.n_bodies] = particles_m_nbody
+        state[self.n_bodies: 2*self.nbodies]  = np.linalg.norm(particles_p_nbody, axis = 1)
+        state[2*self.n_bodies: 3*self.nbodies] = np.linalg.norm(particles_v_nbody, axis = 1)
+        # state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
+        # state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
         return state
     
     def _strip_units(self, particles): #TODO
@@ -176,7 +186,9 @@ class IntegrateEnv(gym.Env):
         g.parameters.timestep = timestep | self.units_time
         return g 
     
-    def reset(self, options = None):
+    def reset(self, options = None, seed = None):
+        if seed != None: 
+            self.seed_initial = seed # otherwise use from the settings
         # super().reset(seed=seed) # We need to seed self.np_random
 
         self.particles = self._initial_conditions()
@@ -217,23 +229,22 @@ class IntegrateEnv(gym.Env):
         self.info_prev = [0.0, 0.0]
         return state_RL, self.info_prev
     
-    def _calculate_reward(self, info, info_prev, T, W):
+    def _calculate_reward(self, info, info_prev, T, tstep, W):
         # take the energy error made from previous time step, not cumulative
         Delta_E, Delta_O = info
         Delta_E_prev, Delta_O_prev = info_prev
         if Delta_E_prev == 0.0:
-            return -(W[0]*(np.log(Delta_E)) +\
-                W[1]*np.linalg.norm(Delta_O) +\
-                W[2]*T) 
+            return -(np.log(abs(Delta_E)/W[0])*np.log(Delta_E)  +\
+                W[2]*T/tstep +\
+                W[1]*np.linalg.norm(Delta_O)) 
         else:
-            return -(W[0]*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
-                    W[1]*np.linalg.norm(Delta_O) +\
-                    W[2]*T) 
+            return -(np.log(abs(Delta_E)/W[0])*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
+                    W[2]*T/tstep +\
+                    W[1]*np.linalg.norm(Delta_O)) 
         # return -(W[0]*abs(Delta_E-Delta_E_prev)*np.log(abs(Delta_E-Delta_E_prev)) +\
                  
     
     def step(self, action):
-
         check_step = self.settings['Integration']['check_step'] # final time for step integration
 
         t0_step = time.time()
@@ -258,17 +269,17 @@ class IntegrateEnv(gym.Env):
             # self.gravity.evolve_model(t)
             # self.channel.copy()
         if self.settings['Integration']['savestate'] == True:
-            info = self._get_info()
-            self._savestate(action, self.iteration, self.gravity.particles, info[0], info[1]) # save initial state
+            info_error = self._get_info()
+            self._savestate(action, self.iteration, self.gravity.particles, info_error[0], info_error[1]) # save initial state
         self.previous_int = current_int
         
         # Get information for the reward
         T = time.time() - t0_step
-        info = self._get_info()
+        info_error = self._get_info()
         state = self._get_state(self.gravity.particles)
         # state = [T, info[0], info[1][0], info[1][1], info[1][2]] # TODO: change to particles positions and velocities
-        reward = self._calculate_reward(info, self.info_prev, T, self.W) # Use computation time for this step, including changing integrator
-        self.info_prev = info
+        reward = self._calculate_reward(info_error, self.info_prev, T, t_step, self.W) # Use computation time for this step, including changing integrator
+        self.info_prev = info_error
 
         self.iteration += 1
         self.comp_time[self.iteration-1] = T
@@ -278,13 +289,13 @@ class IntegrateEnv(gym.Env):
 
         # Display information at each step
         if self.settings['Training']['display'] == True:
-            self._display_info(info, T)
+            self._display_info(info_error, T)
 
         if self.settings['Integration']['plot'] == True:
             plot_state(self.gravity.particles)
 
         # finish experiment if max number of iterations is reached
-        if (abs(info[0]) > 1e-4): # if energy error is too large, stop
+        if (abs(info_error[0]) > 1e-4): # if energy error is too large, stop
             terminated = True
             # self.gravity.stop()
             # plot_trajectory(self.settings)
@@ -293,6 +304,7 @@ class IntegrateEnv(gym.Env):
 
         info = dict()
         info['TimeLimit.truncated'] = False
+        info['Energy_error'] = info_error[0]
         return state, reward, terminated, info
     
     def close(self): 
@@ -388,6 +400,7 @@ def run_many_symple_cases(values):
         a.reset()
         while i < (a.settings['Integration']['max_steps']):
             x, y, terminated, zz = a.step(value[i%len(value)])
+            print(x)
             i += 1
         a.close()
         # a.plot_orbit()
@@ -536,7 +549,7 @@ def test_1_case(value):
 #     values.append([i]*steps)
 
 # values.append(np.random.randint(0, len(a.actions), size = steps))
-# run_many_symple_cases(values)
+# run_many_symple_cases(values[0:2])
 # evaluate_many_symple_cases(values, \
 #                            plot_tstep = True, \
 #                            plot_grid = True,\

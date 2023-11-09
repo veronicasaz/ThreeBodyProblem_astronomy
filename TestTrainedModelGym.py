@@ -15,7 +15,7 @@ def run_withRL(a):
     # env = gym.make('cluster_2D:SympleInt-v0')
     # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    state, info = a.reset()
+    state, info = a.reset(seed = 123)
 
     # Load trained policy network
     n_actions = a.action_space.n
@@ -29,12 +29,17 @@ def run_withRL(a):
     
     state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
     i = 0
+    steps_taken = list()
     while i < (a.settings['Integration']['max_steps']):
         action = model(state).max(1)[1].view(1, 1)
+        steps_taken.append(action)
         state, reward_p, terminated, info = a.step(action.item())
         state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
         i += 1
     a.close()
+
+    np.save(a.settings['Integration']['savefile'] +'_RL_steps_taken', np.array(steps_taken))
+    return steps_taken
 
 def run_many_symple_cases(a, values):
     cases = len(values)
@@ -47,7 +52,7 @@ def run_many_symple_cases(a, values):
         value = values[j]
         terminated = False
         i = 0
-        a.reset()
+        a.reset(seed = 123)
         while i < (a.settings['Integration']['max_steps']):
             x, y, terminated, zz = a.step(value[i%len(value)])
             i += 1
@@ -143,7 +148,7 @@ def evaluate_many_symple_cases(values, \
         plt.savefig('./SympleIntegration_runs/Symple_comparison.png', dpi = 100)
         plt.show()
     
-    if plot_grid == True:
+    if plot_grid == True: # TODO: does not include RL
         fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
         print(a.actions)
         print(np.array(a.actions)[:,0])
@@ -176,9 +181,17 @@ def evaluate_many_symple_cases(values, \
     if plot_errorvstime == True:
         fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
 
-        for i in range(cases-1): #Excluding the case with the mixed actions
+        for i in range(cases-2): #Excluding the case with the mixed actions
             ax[0].scatter(E_E[-1, i], T_c[-1, i], marker = markers[i//n_tstep_cases], color = colors[i%n_tstep_cases], s = 100, label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
             ax[1].scatter(E_M[-1, i], T_c[-1, i], marker = markers[i//n_tstep_cases], color = colors[i%n_tstep_cases], s = 100, label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
+        
+        # plot Random actions
+        ax[0].scatter(E_E[-1, -2], T_c[-1, -2], marker = markers[(i+1)//n_tstep_cases], color = colors[(i+1)%n_tstep_cases], s = 100, label = 'Random choice')
+        ax[1].scatter(E_M[-1, -2], T_c[-1, -2], marker = markers[(i+1)//n_tstep_cases], color = colors[(i+1)%n_tstep_cases], s = 100, label = 'Random choice')
+        
+        # plot RL
+        ax[0].scatter(E_E[-1, -1], T_c[-1, -1], marker = markers[(i+2)//n_tstep_cases], color = colors[(i+2)%n_tstep_cases], s = 100, label = 'RL')
+        ax[1].scatter(E_M[-1, -1], T_c[-1, -1], marker = markers[(i+2)//n_tstep_cases], color = colors[(i+2)%n_tstep_cases], s = 100, label = 'RL')
 
         # sm = ax[1].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
         #                 s = 500, c = E_M[-1,:-1], cmap = 'RdYlBu', \
@@ -211,6 +224,84 @@ def test_1_case(value):
     a.close()
     a.plot_orbit()
 
+def plot_steps_RL():
+    cases = len(values)
+    a = IntegrateEnv()
+
+    # Load run information for symple cases
+    state = list()
+    cons = list()
+    tcomp = list()
+    name = list()
+    for i in range(cases):
+        a.suffix = ('_case%i'%i)
+        state.append(a.loadstate()[0])
+        cons.append(a.loadstate()[1])
+        tcomp.append(a.loadstate()[2])
+        name.append('_case%i'%i)
+    
+    # Load RL run
+    cases += 1
+    a.suffix = ('_case_withRL')
+    state.append(a.loadstate()[0])
+    cons.append(a.loadstate()[1])
+    tcomp.append(a.loadstate()[2])
+    name.append('_case_withRL')
+    steps_taken = np.load(a.settings['Integration']['savefile'] +'_RL_steps_taken.npy', allow_pickle=True)
+
+
+    steps = len(cons[0][:,0])
+
+    # Calculate the energy errors
+    # baseline = cons[4] # Take highest order as a baseline
+    E_E = np.zeros((steps, cases))
+    E_M = np.zeros((steps, cases))
+    T_c = np.zeros((steps, cases))
+    for i in range(cases):
+        # E_E[:, i] = abs((cons[i][:, 1] - cons[i][0, 1])/ cons[i][0, 1]) # absolute relative energy error
+        # E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:])/ cons[i][0, 2:], axis = 1) # relative angular momentum error
+        E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
+        E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
+        T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
+
+
+    # plot
+    colors = ['red', 'green', 'blue', 'orange', 'grey', 'black']
+    lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
+    markers = ['o', 'x', '.', '^', 's']
+    # labels = ['Order 1', 'Order 2', 'Order 3', 'Order 5', 'Order 10', 'Mixed order']
+    n_order_cases = len(a.settings['Integration']['order'])
+    n_tstep_cases = len(a.settings['Integration']['t_step'])
+
+    fig, ax = plt.subplots(3, 1, layout = 'constrained', figsize = (10, 10))
+    x_axis = np.arange(0, steps, 1)
+
+    # plot symple
+    for i in range(cases-2): # plot all combinations with constant dt and order
+        ax[0].plot(x_axis, E_E[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
+        ax[1].plot(x_axis, E_M[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
+        ax[2].plot(x_axis, T_c[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
+    
+    # plot RL and actions
+    ax[0].plot(x_axis, E_E[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
+    secax = ax[0].twinx()
+    # secax.set_xlabel('angle [rad]')
+    secax.plot(x_axis, steps_taken, color = 'black', marker = '.', linestyle = ':', alpha = 0.2)
+    ax[1].plot(x_axis, E_M[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
+    ax[2].plot(x_axis, T_c[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
+
+    labelsize = 20
+    ax[2].legend(loc='upper right')
+    ax[0].set_ylabel('Energy error',  fontsize = labelsize)
+    secax.set_ylabel('Action taken', fontsize = labelsize)
+    ax[1].set_ylabel('Angular momentum error', fontsize = labelsize)
+    ax[1].set_xlabel('Step', fontsize = labelsize)
+    for pl in range(len(ax)):
+        ax[pl].set_yscale('log')
+        ax[pl].tick_params(axis='both', which='major', labelsize=labelsize)
+    plt.savefig('./SympleIntegration_runs/Symple_comparison_RLsteps.png', dpi = 100)
+    plt.show()
+
     
 if __name__ == '__main__':
 
@@ -241,17 +332,23 @@ if __name__ == '__main__':
 
     values.append(np.random.randint(0, len(a.actions), size = steps))
     print("Symple simulations", len(values))
-    # run_many_symple_cases(a, values)
-
-    # RL
-    # run_withRL(a)
-    reward = load_reward(a)
-    plot_reward(a, reward)
+    run_many_symple_cases(a, values)
+    steps_taken = run_withRL(a)
+    
+    
 
     # evaluate_many_symple_cases(values, \
     #                         plot_tstep = True, \
     #                         plot_grid = False,\
-    #                         plot_errorvstime = False)
+    #                         plot_errorvstime = True)
+    
+    plot_steps_RL()
+
+
+
+    # Plot training results
+    reward, EnergyError = load_reward(a)
+    plot_reward(a, reward, EnergyError)
 
 
 
