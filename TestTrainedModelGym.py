@@ -10,54 +10,10 @@ import gym
 
 from Cluster.cluster_2D.envs.SympleIntegration_env import IntegrateEnv
 from TrainingFunctions import DQN, load_reward, plot_reward
+from PlotsSimulation import load_state_files, plot_planets_trajectory, \
+                            run_trajectory, plot_evolution,\
+                            plot_actions_taken
 
-def run_withRL(a):
-    # env = gym.make('cluster_2D:SympleInt-v0')
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    state, info = a.reset(seed = 123)
-
-    # Load trained policy network
-    n_actions = a.action_space.n
-    n_observations = len(state)
-    model = DQN(n_observations, n_actions, settings = a.settings) # we do not specify ``weights``, i.e. create untrained model
-    model.load_state_dict(torch.load(a.settings['Training']['savemodel'] +'model_weights.pth'))
-    model.eval()
-
-    # Load environment
-    a.suffix = ('_case_withRL')
-    
-    state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-    i = 0
-    steps_taken = list()
-    while i < (a.settings['Integration']['max_steps']):
-        action = model(state).max(1)[1].view(1, 1)
-        steps_taken.append(action)
-        state, reward_p, terminated, info = a.step(action.item())
-        state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
-        i += 1
-    a.close()
-
-    np.save(a.settings['Integration']['savefile'] +'_RL_steps_taken', np.array(steps_taken))
-    return steps_taken
-
-def run_many_symple_cases(a, values):
-    cases = len(values)
-    a = IntegrateEnv()
-    for j in range(cases):
-        print("Case %i"%j)
-        print(values[j][0])
-        print(a.actions[values[j][0]])
-        a.suffix = ('_case%i'%j)
-        value = values[j]
-        terminated = False
-        i = 0
-        a.reset(seed = 123)
-        while i < (a.settings['Integration']['max_steps']):
-            x, y, terminated, zz = a.step(value[i%len(value)])
-            i += 1
-        a.close()
-        # a.plot_orbit()
 
 def evaluate_many_symple_cases(values, \
                         plot_tstep = True, \
@@ -150,9 +106,6 @@ def evaluate_many_symple_cases(values, \
     
     if plot_grid == True: # TODO: does not include RL
         fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
-        print(a.actions)
-        print(np.array(a.actions)[:,0])
-        print(E_E[-1,:])
 
         # for i in range(cases): #Excluding the case with the mixed actions
         sc = ax[0].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
@@ -224,9 +177,105 @@ def test_1_case(value):
     a.close()
     a.plot_orbit()
 
-def plot_steps_RL():
+def plot_steps_RL(values, env = None, steps = None):
     cases = len(values)
-    a = IntegrateEnv()
+    if env == None:
+        env = IntegrateEnv()
+
+    #############################################
+    # Load run information for symple cases
+    state = list()
+    cons = list()
+    tcomp = list()
+    name = list()
+    for i in range(cases):
+        state_i, cons_i, tcomp_i = load_state_files(env, steps, namefile = 'Case_%i'%i,)
+        state.append(state_i)
+        cons.append(cons_i)
+        tcomp.append(tcomp_i)
+        name.append('Case_%i'%i)
+    
+    # Load RL run
+    cases += 1
+    state_i, cons_i, tcomp_i = load_state_files(env, steps, namefile = 'Case_RL')
+    state.append(state_i)
+    cons.append(cons_i)
+    tcomp.append(tcomp_i)
+    name.append('Case_RL')
+    steps_taken = np.load(env.settings['Integration']['savefile'] +'RL_steps_taken.npy', allow_pickle=True)
+
+    # print(cons[-1][:, 1])
+    # print("=========================")
+    # a = np.load("./SympleIntegration_runs/state_consCase_RL.npy")
+    # print(a[0:steps, 1])
+    # a = np.load("./SympleIntegration_runs/state_consCase_8.npy")
+    # print(a[0:steps, 1])
+
+    if steps == None:
+        steps = len(cons[0][:,0])
+
+    #############################################
+    # Calculate the energy errors
+    E_E = np.zeros((steps, cases))
+    E_M = np.zeros((steps, cases))
+    T_c = np.zeros((steps, cases))
+    for i in range(cases):
+        E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
+        E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
+        T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
+
+    #############################################
+    # plot
+    fig = fig = plt.figure(figsize = (10,10))
+    gs1 = matplotlib.gridspec.GridSpec(7, 2, left=0.08, wspace=0.1, hspace = 0.1, right = 0.99)
+    ax1 = fig.add_subplot(gs1[0:2, 0]) # cartesian symple
+    ax2 = fig.add_subplot(gs1[0:2, 1]) # cartesian RL
+    ax3 = fig.add_subplot(gs1[2, :]) # actions
+    ax4 = fig.add_subplot(gs1[3:5, :]) # energy error 
+    ax5 = fig.add_subplot(gs1[5:, :]) # computation time
+
+    x_axis = np.arange(0, steps, 1)
+
+    # Plot cartesian
+    name_planets = ['1', '2', '3', '4', '5', '6', '7', '8']
+    
+    # Do it for case 5 and RL
+    plot_planets_trajectory(ax1, state[5], name_planets, steps = steps)
+    plot_planets_trajectory(ax2, state[-1], name_planets, steps = steps)
+
+
+    # Plot energy errors
+    n_tstep_cases = len(env.settings['Integration']['t_step'])
+    lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
+
+    for i in range(cases-1): # plot all combinations with constant dt and order
+        label = 'O%i, t_step = %1.1E'%(env.actions[values[i][0]][0], env.actions[values[i][0]][1])
+        plot_evolution(ax4, x_axis, E_E[:, i], label = label, colorindex = i//n_tstep_cases, linestyle = lines[i%n_tstep_cases])
+        plot_evolution(ax5, x_axis, T_c[:, i], label = label, colorindex = i//n_tstep_cases, linestyle = lines[i%n_tstep_cases])
+    
+    # plot RL and actions
+    label = 'RL'
+    plot_actions_taken(ax3, x_axis, steps_taken)
+    plot_evolution(ax4, x_axis, E_E[:, -1], label = label, colorindex = -1, linestyle = '-')
+    plot_evolution(ax5, x_axis, T_c[:, -1], label = label, colorindex = -1, linestyle = '-')
+
+    labelsize = 10
+    ax3.set_ylabel('Action taken', fontsize = labelsize)
+    ax4.legend(loc='upper right')
+    ax4.set_ylabel('Energy error',  fontsize = labelsize)
+    # ax[1].set_ylabel('Angular momentum error', fontsize = labelsize)
+    ax5.set_xlabel('Step', fontsize = labelsize)
+    ax4.set_yscale('log')
+    ax5.set_yscale('log')
+    ax4.tick_params(axis='both', which='major', labelsize=labelsize)
+    ax5.tick_params(axis='both', which='major', labelsize=labelsize)
+    
+    plt.savefig('./SympleIntegration_runs/Symple_comparison_RLsteps.png', dpi = 100)
+    plt.show()
+
+
+def plot_runs_trajectory(cases, action, steps):
+    env = IntegrateEnv()
 
     # Load run information for symple cases
     state = list()
@@ -234,121 +283,82 @@ def plot_steps_RL():
     tcomp = list()
     name = list()
     for i in range(cases):
-        a.suffix = ('_case%i'%i)
-        state.append(a.loadstate()[0])
-        cons.append(a.loadstate()[1])
-        tcomp.append(a.loadstate()[2])
-        name.append('_case%i'%i)
-    
-    # Load RL run
-    cases += 1
-    a.suffix = ('_case_withRL')
-    state.append(a.loadstate()[0])
-    cons.append(a.loadstate()[1])
-    tcomp.append(a.loadstate()[2])
-    name.append('_case_withRL')
-    steps_taken = np.load(a.settings['Integration']['savefile'] +'_RL_steps_taken.npy', allow_pickle=True)
-
-
-    steps = len(cons[0][:,0])
-
-    # Calculate the energy errors
-    # baseline = cons[4] # Take highest order as a baseline
-    E_E = np.zeros((steps, cases))
-    E_M = np.zeros((steps, cases))
-    T_c = np.zeros((steps, cases))
-    for i in range(cases):
-        # E_E[:, i] = abs((cons[i][:, 1] - cons[i][0, 1])/ cons[i][0, 1]) # absolute relative energy error
-        # E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:])/ cons[i][0, 2:], axis = 1) # relative angular momentum error
-        E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
-        E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
-        T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
-
+        state_i, cons_i, tcomp_i = load_state_files(env, namefile = '_traj_action_%i_initialization_%i'%(action, i))
+        state.append(state_i)
+        cons.append(cons_i)
+        tcomp.append(tcomp_i)
+        name.append('Case_%i'%i)
 
     # plot
-    colors = ['red', 'green', 'blue', 'orange', 'grey', 'black']
-    lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
-    markers = ['o', 'x', '.', '^', 's']
-    # labels = ['Order 1', 'Order 2', 'Order 3', 'Order 5', 'Order 10', 'Mixed order']
-    n_order_cases = len(a.settings['Integration']['order'])
-    n_tstep_cases = len(a.settings['Integration']['t_step'])
+    label_size = 20
+    name_planets = env.names
+    fig, axes = plt.subplots(nrows=int(cases//3), ncols= 3, layout = 'constrained', figsize = (10, 10))
 
-    fig, ax = plt.subplots(3, 1, layout = 'constrained', figsize = (10, 10))
-    x_axis = np.arange(0, steps, 1)
+    for i, ax in enumerate(axes.flat):
+        plot_planets_trajectory(ax, state[i], name_planets, labelsize = label_size, steps = steps)
+        if i == 0:
+            ax.legend(fontsize = 10)
 
-    # plot symple
-    for i in range(cases-2): # plot all combinations with constant dt and order
-        ax[0].plot(x_axis, E_E[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
-        ax[1].plot(x_axis, E_M[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
-        ax[2].plot(x_axis, T_c[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]), alpha = 0.5)
-    
-    # plot RL and actions
-    ax[0].plot(x_axis, E_E[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
-    secax = ax[0].twinx()
-    # secax.set_xlabel('angle [rad]')
-    secax.plot(x_axis, steps_taken, color = 'black', marker = '.', linestyle = ':', alpha = 0.2)
-    ax[1].plot(x_axis, E_M[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
-    ax[2].plot(x_axis, T_c[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
-
-    labelsize = 20
-    ax[2].legend(loc='upper right')
-    ax[0].set_ylabel('Energy error',  fontsize = labelsize)
-    secax.set_ylabel('Action taken', fontsize = labelsize)
-    ax[1].set_ylabel('Angular momentum error', fontsize = labelsize)
-    ax[1].set_xlabel('Step', fontsize = labelsize)
-    for pl in range(len(ax)):
-        ax[pl].set_yscale('log')
-        ax[pl].tick_params(axis='both', which='major', labelsize=labelsize)
-    plt.savefig('./SympleIntegration_runs/Symple_comparison_RLsteps.png', dpi = 100)
+    plt.axis('equal')
+    plt.savefig('SympleIntegration_runs/plot_state_action%i'%action)
     plt.show()
-
     
 if __name__ == '__main__':
+    experiment = 3
 
-    ##########################################
-    # Run all possibilities with Symple
-    # a = IntegrateEnv()
-    # steps = 30 # large value just in case
-    # values = list()
-    # for i in range(len(a.actions)):
-    #     values.append([i]*steps)
-
-    # values.append(np.random.randint(0, len(a.actions), size = steps))
-    # run_many_symple_cases(values)
-    # evaluate_many_symple_cases(values, \
-    #                         plot_tstep = True, \
-    #                         plot_grid = False,\
-    #                         plot_errorvstime = False)
-
-    # test_1_case(values[5])
-
-    ##########################################
-    # Run all possibilities with Symple vs RL
-    a = IntegrateEnv()
-    steps = 30 # large value just in case
-    values = list()
-    for i in range(len(a.actions)):
-        values.append([i]*steps)
-
-    values.append(np.random.randint(0, len(a.actions), size = steps))
-    print("Symple simulations", len(values))
-    run_many_symple_cases(a, values)
-    steps_taken = run_withRL(a)
-    
-    
-
-    # evaluate_many_symple_cases(values, \
-    #                         plot_tstep = True, \
-    #                         plot_grid = False,\
-    #                         plot_errorvstime = True)
-    
-    plot_steps_RL()
+    if experiment == 1: 
+        # plot trajectory with symple for a fixed action, many initializations
+        cases = 9
+        action = 5
+        steps = 500
+        env_symple = IntegrateEnv()
+        env_symple.settings['Integration']['check_step'] = 1e-1
+        def runs_trajectory_initializations(cases, action, steps):
+            seeds = np.arange(cases)
+            for j in range(cases):
+                print("Case %i"%j)
+                name_suff = ('SympleInitializations/_traj_action_%i_initialization_%i'%(action, j))
+                run_trajectory(seed = seeds[j], action = action, env = env_symple,\
+                               name_suffix = name_suff, steps = steps)
+                
+        runs_trajectory_initializations(cases, action, steps)
+        plot_runs_trajectory(cases, action, steps)
 
 
+    elif experiment == 2:
+        # Plot training results
+        a = IntegrateEnv()
+        reward, EnergyError = load_reward(a)
+        plot_reward(a, reward, EnergyError)
 
-    # Plot training results
-    reward, EnergyError = load_reward(a)
-    plot_reward(a, reward, EnergyError)
+    elif experiment == 3:
+        ##########################################
+        # Run all possibilities with Symple vs RL
+        env_symple = IntegrateEnv()
+        steps = 30 # large value just in case
+        values = list()
+        seed = 1
+        
+        for i in range(len(env_symple.actions)):
+            values.append([i]*steps)
+        # values.append(np.random.randint(0, len(env_symple.actions), size = steps))
+
+        ###############################################
+        # If already run, this can be commented:
+        # cases = len(values)
+        # for j in range(cases):
+        #     print("Symple simulations", len(values))
+        #     run_trajectory(seed = seed, action = values[j],
+        #             env = env_symple, name_suffix = "Case_%i"%j, 
+        #             steps = steps)
+
+        # steps_taken = run_trajectory(seed = seed, action = 'RL',
+        #             env = env_symple, name_suffix = 'Case_RL', 
+        #             steps = steps)
+        
+        ###############################################
+        plot_steps_RL(values, steps = steps, env = env_symple)
+
 
 
 

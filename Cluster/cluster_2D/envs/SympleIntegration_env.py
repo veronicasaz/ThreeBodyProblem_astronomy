@@ -162,8 +162,8 @@ class IntegrateEnv(gym.Env):
         particles_m_nbody = self.converter.to_generic(particles.mass).value_in(nbody_system.mass)
 
         state[0:self.n_bodies] = particles_m_nbody
-        state[self.n_bodies: 2*self.nbodies]  = np.linalg.norm(particles_p_nbody, axis = 1)
-        state[2*self.n_bodies: 3*self.nbodies] = np.linalg.norm(particles_v_nbody, axis = 1)
+        state[self.n_bodies: 2*self.n_bodies]  = np.linalg.norm(particles_p_nbody, axis = 1)
+        state[2*self.n_bodies: 3*self.n_bodies] = np.linalg.norm(particles_v_nbody, axis = 1)
         # state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
         # state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
         return state
@@ -235,11 +235,11 @@ class IntegrateEnv(gym.Env):
         Delta_E_prev, Delta_O_prev = info_prev
         if Delta_E_prev == 0.0:
             return -(np.log(abs(Delta_E)/W[0])*np.log(Delta_E)  +\
-                W[2]*T/tstep +\
+                W[2]*T +\
                 W[1]*np.linalg.norm(Delta_O)) 
         else:
             return -(np.log(abs(Delta_E)/W[0])*(np.log(Delta_E)-np.log(Delta_E_prev)) +\
-                    W[2]*T/tstep +\
+                    W[2]*T +\
                     W[1]*np.linalg.norm(Delta_O)) 
         # return -(W[0]*abs(Delta_E-Delta_E_prev)*np.log(abs(Delta_E-Delta_E_prev)) +\
                  
@@ -352,9 +352,8 @@ class IntegrateEnv(gym.Env):
         self.cons[step, 0] = action
         self.cons[step, 1] = E
         self.cons[step, 2:] = L
-
-        np.save(self.settings['Integration']['savefile'] +'_state'+ self.suffix, self.state)
-        np.save(self.settings['Integration']['savefile'] +'_cons'+ self.suffix, self.cons)
+        np.save(self.settings['Integration']['savefile'] +'_state'+ self.suffix, self.state, allow_pickle=True)
+        np.save(self.settings['Integration']['savefile'] +'_cons'+ self.suffix, self.cons, allow_pickle=True)
     
     def loadstate(self):
         state = np.load(self.settings['Integration']['savefile'] +'_state'+ self.suffix+'.npy')
@@ -370,7 +369,7 @@ class IntegrateEnv(gym.Env):
         for i in range(n_bodies):
             plt.plot(state[:, i, 2], state[:, i, 3], marker= 'o', label = self.names[i])
         plt.legend()
-        plt.savefig(a.settings['Integration']['savefile'] + '_cartplot.png', dpi = 100)
+        plt.savefig(self.settings['Integration']['savefile'] + '_cartplot.png', dpi = 100)
         plt.show()
 
         
