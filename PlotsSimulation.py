@@ -67,7 +67,7 @@ def load_state_files(env, steps, namefile = None):
     return state, cons, tcomp
 
 def plot_planets_trajectory(ax, state, name_planets, labelsize = 20, steps = 30):
-    n_planets = np.shape(state[0])[1]
+    n_planets = np.shape(state)[1]
     for j in range(n_planets):
         x = state[0:steps, j, 2]
         y = state[0:steps, j, 3]

@@ -30,9 +30,11 @@ def orbital_period(G, a, Mtot):
     return 2*np.pi*(a**3/(constants.G*Mtot)).sqrt()
 
 class IntegrateEnv(gym.Env):
-    def __init__(self, render_mode = None, bodies = 4, suffix = ''):
-        self.size = 4*bodies #TODO: fix observation space
+    def __init__(self, render_mode = None, bodies = None, suffix = ''):
         self.settings = load_json("./settings_symple.json")
+        if bodies == None:
+            self.bodies = self.settings['Integration']['bodies']
+        self.size = 4*self.bodies #TODO: fix observation space
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
@@ -62,7 +64,7 @@ class IntegrateEnv(gym.Env):
             self.actions = self.settings['Integration']['t_step']
 
     def _add_bodies(self, bodies):
-        n_bodies = self.settings['Integration']['bodies']
+        n_bodies = self.bodies
         ranges = self.settings['Integration']['ranges']
         ranges_np = np.array(list(ranges.values()))
 
@@ -473,9 +475,6 @@ def evaluate_many_symple_cases(values, \
     
     if plot_grid == True:
         fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
-        print(a.actions)
-        print(np.array(a.actions)[:,0])
-        print(E_E[-1,:])
 
         # for i in range(cases): #Excluding the case with the mixed actions
         sc = ax[0].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
