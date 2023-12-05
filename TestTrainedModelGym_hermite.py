@@ -249,9 +249,7 @@ def plot_steps(values, env = None, steps = None, RL = False):
     x_axis = np.arange(0, steps, 1)
 
     # Plot cartesian
-    name_planets = np.arange(np.shape(state)[1]).astype(str)
-    print(name_planets)
-    
+    name_planets = np.arange(np.shape(state)[1]).astype(str)    
     
     # Do it for RL
     plot_planets_trajectory(ax1, state[0], name_planets, steps = steps)
@@ -314,7 +312,7 @@ def plot_runs_trajectory(cases, action, steps, seeds):
     tcomp = list()
     name = list()
     for i in range(cases):
-        state_i, cons_i, tcomp_i = load_state_files(env, namefile = '_traj_action_%i_initialization_%i'%(action, i))
+        state_i, cons_i, tcomp_i = load_state_files(env, steps, namefile = '_traj_action_%i_initialization_%i'%(action, i))
         state.append(state_i)
         cons.append(cons_i)
         tcomp.append(tcomp_i)
@@ -322,14 +320,13 @@ def plot_runs_trajectory(cases, action, steps, seeds):
 
     # plot
     label_size = 20
-    name_planets = env.names
+    # name_planets = env.names
+    name_planets = np.arange(np.shape(state)[1]).astype(str)
     fig, axes = plt.subplots(nrows=int(cases//3), ncols= 3, layout = 'constrained', figsize = (10, 10))
 
     for i, ax in enumerate(axes.flat):
         plot_planets_trajectory(ax, state[i], name_planets, labelsize = label_size, steps = steps)
-        if i == 0:
-            ax.legend(fontsize = 10)
-            ax.title("Seed = %i"%seeds[i], fontsize = label_size)
+        ax.set_title("Seed = %i"%(seeds[i]), fontsize = label_size)
 
     plt.axis('equal')
     plt.savefig('HermiteIntegration_runs/plot_state_action%i'%action)
@@ -337,13 +334,12 @@ def plot_runs_trajectory(cases, action, steps, seeds):
     
 if __name__ == '__main__':
     experiment = 0
-
     
     if experiment == 0: 
         # plot trajectory with hermite for all combinations of actions, one initialization
         env_hermite = IntegrateEnv()
         cases = len(env_hermite.actions)
-        steps = 10
+        steps = 1000
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
         seed = 1
@@ -360,19 +356,19 @@ if __name__ == '__main__':
     elif experiment == 1: 
         # plot trajectory with hermite for a fixed action, many initializations
         cases = 9
-        action = 5
+        action = 0
         steps = 500
-        hermite = IntegrateEnv()
-        hermite.settings['Integration']['check_step'] = 1e-1
+        env_hermite = IntegrateEnv()
+        env_hermite.settings['Integration']['check_step'] = 1e-1
         seeds = np.arange(cases)
         def runs_trajectory_initializations(cases, action, steps):
             for j in range(cases):
                 print("Case %i"%j)
-                name_suff = ('HermiteInitializations/_traj_action_%i_initialization_%i'%(action, j))
+                name_suff = ('_traj_action_%i_initialization_%i'%(action, j))
                 run_trajectory(seed = seeds[j], action = action, env = env_hermite,\
                                name_suffix = name_suff, steps = steps)
                 
-        runs_trajectory_initializations(cases, action, steps)
+        # runs_trajectory_initializations(cases, action, steps)
         plot_runs_trajectory(cases, action, steps, seeds)
 
     elif experiment == 2:

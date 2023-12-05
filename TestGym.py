@@ -25,7 +25,8 @@ from TrainingFunctions import DQN, \
 
 # Environment
 # env = gym.make('cluster_2D:Cluster2D-v0') # example of how to create the env once it's been registered
-env = gym.make('cluster_2D:SympleInt-v0') # example of how to create the env once it's been registered
+# env = gym.make('cluster_2D:SympleInt-v0') # example of how to create the env once it's been registered
+env = gym.make('cluster_2D:HermiteInt-v0') # example of how to create the env once it's been registered
 env.reset() # Resets the environment and returns a random initial state
 
 # if GPU is to be used
@@ -36,7 +37,8 @@ is_ipython = 'inline' in matplotlib.get_backend()
 if is_ipython:
     from IPython import display
 
-settings = load_json("./settings_symple.json")
+# settings = load_json("./settings_symple.json")
+settings = load_json("./settings_hermite.json")
 
 # Transition = namedtuple('Transition',
 #                         ('state', 'action', 'next_state', 'reward'))
