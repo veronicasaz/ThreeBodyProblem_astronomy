@@ -5,7 +5,8 @@ import matplotlib
 import torch
 
 from TrainingFunctions import DQN, load_reward, plot_reward
-from Cluster.cluster_2D.envs.SympleIntegration_env import IntegrateEnv
+# from Cluster.cluster_2D.envs.SympleIntegration_env import IntegrateEnv
+from Cluster.cluster_2D.envs.HermiteIntegration_env import IntegrateEnv_Hermite
 
 
 # colors = ['orange', 'green', 'blue', 'red', 'grey', 'black']
@@ -15,18 +16,20 @@ colors2 = ['navy']
 lines = ['-', '--', ':', '-.' ]
 markers = ['o', 'x', '.', '^', 's']
 
-def run_trajectory(seed = 123, action = 'RL', env = None, name_suffix = None, steps = None):
+def run_trajectory(seed = 123, action = 'RL', env = None, 
+                   name_suffix = None, steps = None):
     """
     Run one initialization with RL or with an integrator
     """
     if env == None:
-        env = IntegrateEnv()
+        env = IntegrateEnv_Hermite()
     env.suffix = name_suffix
     state, info = env.reset(seed = seed)
 
     if steps == None:
         steps = env.settings['Integration']['max_steps']
     
+    reward = np.zeros(steps)
     i = 0
     if action == 'RL':
          # Load trained policy network
@@ -39,11 +42,10 @@ def run_trajectory(seed = 123, action = 'RL', env = None, name_suffix = None, st
         steps_taken = list()
         
         while i < steps:
-            print(i)
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             action = model(state).max(1)[1].view(1, 1)
             steps_taken.append(action.item())
-            state, reward_p, terminated, info = env.step(action.item())
+            state, reward[i], terminated, info = env.step(action.item())
             i += 1
         env.close()
         np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken', np.array(steps_taken))
@@ -52,10 +54,13 @@ def run_trajectory(seed = 123, action = 'RL', env = None, name_suffix = None, st
         while i < steps:
             if type(action) == int:
                 x, y, terminated, zz = env.step(action)
+                reward[i] = env.reward
             else:
                 x, y, terminated, zz = env.step(action[i%len(action)])
+                reward[i] = env.reward
             i += 1
         env.close()
+    return reward
 
 def load_state_files(env, steps, namefile = None):
     # Load run information for symple cases
@@ -95,7 +100,7 @@ def plot_actions_taken(ax, x_axis, y_axis, label = None):
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 
                    colorindex = None, linestyle = None):
     if colorindex != None:
-        color = colors[colorindex+3] # start in the blues
+        color = colors[(colorindex+3)%len(colors)] # start in the blues
     ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label)
 
 

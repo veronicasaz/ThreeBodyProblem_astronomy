@@ -29,8 +29,8 @@ we get different energy errors (round-off error?)
 def orbital_period(G, a, Mtot):
     return 2*np.pi*(a**3/(constants.G*Mtot)).sqrt()
 
-class IntegrateEnv(gym.Env):
-    def __init__(self, render_mode = None, bodies = None, suffix = ''):
+class IntegrateEnv_Hermite(gym.Env):
+    def __init__(self, render_mode = None, bodies = None, subfolder = '', suffix = ''):
         self.settings = load_json("./settings_hermite.json")
         if bodies == None:
             self.bodies = self.settings['Integration']['bodies']
@@ -40,12 +40,15 @@ class IntegrateEnv(gym.Env):
                                                 dtype=np.float64)
         
         self.actions = self.settings['Integration']['t_step_param']
+
+        self.save_state_to_file = self.settings['Integration']['savestate']
         
         self.action_space = gym.spaces.Discrete(len(self.actions)) 
         self.W = self.settings['Training']['weights']
+        self.seed_initial = self.settings['Integration']['seed']
 
         self.suffix = suffix # added info for saving files
-    
+        self.subfolder = subfolder
 
     def _add_bodies(self, bodies):
         n_bodies = self.bodies
@@ -161,7 +164,7 @@ class IntegrateEnv(gym.Env):
         else:
             g = Hermite()
         # g.parameters.set_defaults()
-        g.dt_param = tstep_param | self.units_time
+        g.parameters.dt_param = tstep_param 
         return g 
     
     def reset(self, options = None, seed = None):
@@ -187,7 +190,7 @@ class IntegrateEnv(gym.Env):
         self.t0_comp = time.time()
 
         # Initialize variables to save simulation
-        if self.settings['Integration']['savestate'] == True:
+        if self.save_state_to_file == True:
             steps = self.settings['Integration']['max_steps']
             self.state = np.zeros((steps, self.n_bodies, 8)) # action, mass, rx3, vx3, 
             self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
@@ -201,9 +204,12 @@ class IntegrateEnv(gym.Env):
         Delta_E, Delta_O = info
         Delta_E_prev, Delta_O_prev = info_prev
 
+        # print("RRR", Delta_E, Delta_E_prev, action, W[0]* np.log10(abs(Delta_E)), 
+        #       W[1]*(np.log10(Delta_E)-np.log10(Delta_E_prev)), W[2]*np.log10(action))
         if Delta_E_prev == 0.0:
             return 0
-        return (W[0]* np.log10(abs(Delta_E)) + W[1]*(np.log10(Delta_E)-np.log10(Delta_E_prev))) /\
+        else:
+            return (W[0]* np.log10(abs(Delta_E)) + W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) /\
                 W[2]*np.log10(action)
     
     def step(self, action):
@@ -213,7 +219,7 @@ class IntegrateEnv(gym.Env):
         # print("Action", self.actions[action])
 
         # Apply action
-        self.gravity.dt_param = self.actions[action] | self.units_time
+        self.gravity.parameters.dt_param = self.actions[action] 
 
         self.t_cumul += check_step
 
@@ -226,7 +232,7 @@ class IntegrateEnv(gym.Env):
         # for i, t in enumerate(times[1:]):
             # self.gravity.evolve_model(t)
             # self.channel.copy()
-        if self.settings['Integration']['savestate'] == True:
+        if self.save_state_to_file == True:
             info_error = self._get_info()
             self._savestate(action, self.iteration, self.gravity.particles, info_error[0], info_error[1]) # save initial state
         
@@ -235,12 +241,13 @@ class IntegrateEnv(gym.Env):
         info = self._get_info()
         state = self._get_state(self.gravity.particles)
         reward = self._calculate_reward(info_error, self.info_prev, T, self.actions[action], self.W) # Use computation time for this step, including changing integrator
+        self.reward = reward
         self.info_prev = info_error
 
         self.iteration += 1
         self.comp_time[self.iteration-1] = T
-        if self.settings['Integration']['savestate'] == True:
-            np.save(self.settings['Integration']['savefile'] +'_tcomp' + self.suffix, self.comp_time)
+        if self.save_state_to_file == True:
+            np.save(self.settings['Integration']['savefile'] + self.subfolder + '_tcomp' + self.suffix, self.comp_time)
 
         # Display information at each step
         if self.settings['Training']['display'] == True:
@@ -309,13 +316,13 @@ class IntegrateEnv(gym.Env):
         self.cons[step, 1] = E
         self.cons[step, 2:] = L
 
-        np.save(self.settings['Integration']['savefile'] +'_state'+ self.suffix, self.state)
-        np.save(self.settings['Integration']['savefile'] +'_cons'+ self.suffix, self.cons)
+        np.save(self.settings['Integration']['savefile'] + self.subfolder + '_state'+ self.suffix, self.state)
+        np.save(self.settings['Integration']['savefile'] + self.subfolder + '_cons'+ self.suffix, self.cons)
     
     def loadstate(self):
-        state = np.load(self.settings['Integration']['savefile'] +'_state'+ self.suffix+'.npy')
-        cons = np.load(self.settings['Integration']['savefile'] +'_cons'+ self.suffix+'.npy')
-        tcomp = np.load(self.settings['Integration']['savefile'] +'_tcomp'+ self.suffix+'.npy')
+        state = np.load(self.settings['Integration']['savefile'] + self.subfolder + '_state'+ self.suffix+'.npy')
+        cons = np.load(self.settings['Integration']['savefile'] + self.subfolder + '_cons'+ self.suffix+'.npy')
+        tcomp = np.load(self.settings['Integration']['savefile'] +  self.subfolder + '_tcomp'+ self.suffix+'.npy')
         return state, cons, tcomp
 
     def plot_orbit(self):

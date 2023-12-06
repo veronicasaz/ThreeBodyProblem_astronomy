@@ -2,7 +2,7 @@
     "Actions": "mixed",
     "Integration":
     {
-       "savefile": "./HermiteIntegration_runs/state",
+       "savefile": "./HermiteIntegration_runs/",
        "savestate": true,
        "units": "si",
        "bodies": 5, 
@@ -14,7 +14,7 @@
        "ranges": {
           "m": [1e-4, 1e-3],
           "a": [2, 4], 
-          "e": [0.8, 0.99], 
+          "e": [0.8, 0.9], 
           "i": [0.0, 10],
           "omega": [0, 360] ,
           "Omega": [0, 360],
@@ -25,7 +25,7 @@
     {
     	"savemodel": "./HermiteIntegration_training/",
     	"display": true,
-        "weights": [1, 1.0, 1.0],
+        "weights": [1.0, 1.0, 100.0],
         "max_iter": 10000,
         "hidden_layers": 3,
         "neurons": 50,
