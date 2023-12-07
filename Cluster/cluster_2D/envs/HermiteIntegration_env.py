@@ -11,6 +11,8 @@ from amuse.community.hermite.interface import Hermite
 from amuse.community.ph4.interface import ph4
 from amuse.ext.solarsystem import new_solar_system
 from amuse.ext.orbital_elements import  generate_binaries
+from amuse.lab import new_powerlaw_mass_distribution, Particles
+from amuse.ic.kingmodel import new_king_model
 
 from pyDOE import lhs
 
@@ -33,8 +35,8 @@ class IntegrateEnv_Hermite(gym.Env):
     def __init__(self, render_mode = None, bodies = None, subfolder = '', suffix = ''):
         self.settings = load_json("./settings_hermite.json")
         if bodies == None:
-            self.bodies = self.settings['Integration']['bodies']
-        self.size = 4*self.bodies #TODO: fix observation space
+            self.n_bodies = self.settings['Integration']['n_bodies']
+        self.size = 4*self.n_bodies #TODO: fix observation space
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
@@ -51,15 +53,14 @@ class IntegrateEnv_Hermite(gym.Env):
         self.subfolder = subfolder
 
     def _add_bodies(self, bodies):
-        n_bodies = self.bodies
         ranges = self.settings['Integration']['ranges']
         ranges_np = np.array(list(ranges.values()))
 
         if self.seed_initial != "None":
             np.random.seed(seed = self.seed_initial)
-        K = lhs(len(ranges), samples = n_bodies) * (ranges_np[:, 1]- ranges_np[:, 0]) + ranges_np[:, 0] 
+        K = lhs(len(ranges), samples = self.n_bodies) * (ranges_np[:, 1]- ranges_np[:, 0]) + ranges_np[:, 0] 
 
-        for i in range(n_bodies):
+        for i in range(self.n_bodies):
             sun, particle = generate_binaries(
             bodies[bodies.name=='SUN'].mass,
             K[i, 0] | units.MSun,
@@ -82,21 +83,47 @@ class IntegrateEnv_Hermite(gym.Env):
 
 
     def _initial_conditions(self, seed):
-        # self.settings['Integration']['masses']
+        if self.settings['Integration']['system'] == 'planetary':
+            bodies = new_solar_system()
+            bodies = self._add_bodies(bodies)
+            self.names = bodies.name
+            self.n_bodies = len(bodies)
 
-        bodies = new_solar_system()
-        bodies = self._add_bodies(bodies)
-        self.names = bodies.name
-        self.n_bodies = len(bodies)
+            self.converter = nbody_system.nbody_to_si(bodies.mass.sum(), 1 | units.au)
 
-        self.converter = nbody_system.nbody_to_si(bodies.mass.sum(), 1 | units.au)
+        elif self.settings['Integration']['system'] == 'cluster':
+            alpha_IMF = -2.35
+            masses = new_powerlaw_mass_distribution(self.n_bodies, 0.1 |units.MSun, 
+                                        100 | units.MSun, alpha_IMF)
+            W0 = 3.0
+            r_cluster = 1.0 | units.parsec
+            self.converter=nbody_system.nbody_to_si(masses.sum(),r_cluster)
+            bodies = new_king_model(self.n_bodies, W0, convert_nbody=self.converter)
+            bodies.scale_to_standard(self.converter)
+            bodies.mass = masses
+        
+        elif self.settings['Integration']['system'] == 'triple':
+            self.n_bodies = 3
+            bodies = Particles(self.n_bodies)
+            bodies.mass = (1.0, 1.0, 1.0) | units.MSun
+            bodies[0].position = (0.0, 0.0, 0.0) | units.au
+            bodies[1].position = (10.0, 0.0, 0.0) | units.au
+            bodies[2].position = (0.0, 10.0, 0.0) | units.au
+            bodies[0].velocity = (0.0, 10.0, 0.0) | units.kms
+            bodies[1].velocity = (-10.0, 0.0, 0.0) | units.kms
+            self.converter = nbody_system.nbody_to_si(bodies.mass.sum(), 1 | units.au)
         
         if self.settings['Integration']['units'] == 'si':
             # bodies.scale_to_standard(convert_nbody=self.converter)
             self.G = constants.G
             self.units_G = units.m**3 * units.kg**(-1) * units.s**(-2)
             self.units_energy = units.m**2 * units.s**(-2)* units.kg
-            self.units_time = units.yr
+            if self.settings['Integration']['system'] == 'planetary' or \
+                self.settings['Integration']['system'] == 'triple':
+                self.units_time = units.yr
+            elif self.settings['Integration']['system'] == 'cluster':
+                self.units_time = 1000*units.yr
+
             self.units_t = units.s 
             self.units_l = units.m
             self.units_m = units.kg
@@ -214,6 +241,8 @@ class IntegrateEnv_Hermite(gym.Env):
     
     def step(self, action):
 
+        self.iteration += 1
+
         check_step = self.settings['Integration']['check_step'] # final time for step integration
         t0_step = time.time()
         # print("Action", self.actions[action])
@@ -225,7 +254,7 @@ class IntegrateEnv_Hermite(gym.Env):
 
         # Integrate
         # self.gravity.evolve_model(check_step | self.units_time)
-        t = (self.t_cumul+check_step) | self.units_time
+        t = (self.t_cumul) | self.units_time
         self.gravity.evolve_model(t)
         self.channel.copy()
 
@@ -244,10 +273,10 @@ class IntegrateEnv_Hermite(gym.Env):
         self.reward = reward
         self.info_prev = info_error
 
-        self.iteration += 1
         self.comp_time[self.iteration-1] = T
         if self.save_state_to_file == True:
             np.save(self.settings['Integration']['savefile'] + self.subfolder + '_tcomp' + self.suffix, self.comp_time)
+
 
         # Display information at each step
         if self.settings['Training']['display'] == True:
