@@ -17,18 +17,22 @@ lines = ['-', '--', ':', '-.' ]
 markers = ['o', 'x', '.', '^', 's']
 
 def run_trajectory(seed = 123, action = 'RL', env = None, 
-                   name_suffix = None, steps = None):
+                   name_suffix = None, steps = None,
+                   reward_f = None):
     """
     Run one initialization with RL or with an integrator
     """
     if env == None:
         env = IntegrateEnv_Hermite()
     env.suffix = name_suffix
-    state, info = env.reset(seed = seed)
-
     if steps == None:
         steps = env.settings['Integration']['max_steps']
-    
+    if reward_f == None:
+        reward_f = [0]
+    else:
+        env.W = reward_f[1:] # overload weights
+    state, info = env.reset(seed = seed, steps = steps, typereward = reward_f[0])
+
     reward = np.zeros(steps)
     i = 0
     if action == 'RL':
@@ -41,7 +45,7 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         
         steps_taken = list()
         
-        while i < steps:
+        while i < steps-1:
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             action = model(state).max(1)[1].view(1, 1)
             steps_taken.append(action.item())
@@ -51,7 +55,7 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken', np.array(steps_taken))
         return steps_taken
     else:
-        while i < steps:
+        while i < steps-1:
             if type(action) == int:
                 x, y, terminated, zz = env.step(action)
                 reward[i] = env.reward
@@ -71,7 +75,7 @@ def load_state_files(env, steps, namefile = None):
 
     return state, cons, tcomp
 
-def plot_planets_trajectory(ax, state, name_planets, labelsize = 20, steps = 30):
+def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30):
     n_planets = np.shape(state)[1]
     for j in range(n_planets):
         x = state[0:steps, j, 2]
@@ -79,6 +83,9 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 20, steps = 30)
         m = state[0, j, 1]
         size_marker = np.log(m)/30
 
+        ax.scatter(x[0], y[0], s = 20*size_marker,\
+                   c = colors[j%len(colors)], \
+                    label = name_planets[j])
         ax.plot(x[1:], y[1:], marker = None, 
                     markersize = size_marker, \
                     linestyle = '-',\
@@ -86,12 +93,11 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 20, steps = 30)
                     alpha = 0.1)
         
         ax.scatter(x[1:], y[1:], s = size_marker, \
-                    c = colors[j%len(colors)], \
-                    marker = markers[j//len(colors)],\
-                    label = name_planets[j])
+                    c = colors[j%len(colors)])
+                    # marker = markers[j//len(colors)],)
         
     ax.set_xlabel('x (m)', fontsize = labelsize)
-    ax.set_xlabel('y (m)', fontsize = labelsize)
+    ax.set_ylabel('y (m)', fontsize = labelsize)
     
 def plot_actions_taken(ax, x_axis, y_axis, label = None):
     colors = colors2[0]

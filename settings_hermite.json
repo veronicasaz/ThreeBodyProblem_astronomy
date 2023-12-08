@@ -10,6 +10,8 @@
        "n_bodies": 3, 
        "max_steps": 1000,
        "check_step": 1e1,
+       "action": "range",
+       "number_actions": 10,
        "t_step_param": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1], 
        "seed": "None",
        "plot": false,
@@ -21,6 +23,12 @@
           "omega": [0, 360] ,
           "Omega": [0, 360],
           "TA": [0, 360]
+       },
+       "ranges_triple": {
+          "x1": [5.0, 20.0],
+          "y1": [0.0, 10.0],
+          "x2": [0.0, 10.0],
+          "y2": [5.0, 20.0]
        }
      },
     "Training":

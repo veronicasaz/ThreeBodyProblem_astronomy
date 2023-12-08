@@ -41,7 +41,14 @@ class IntegrateEnv_Hermite(gym.Env):
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
         
-        self.actions = self.settings['Integration']['t_step_param']
+        # Create actions:
+        if self.settings['Integration']['action'] == 'array':
+            self.actions = self.settings['Integration']['t_step_param']
+        elif self.settings['Integration']['action'] == 'range':
+            low = self.settings['Integration']['t_step_param'][0]
+            high = self.settings['Integration']['t_step_param'][-1]
+            n_actions = self.settings['Integration']['number_actions']
+            self.actions = np.logspace(np.log10(low), np.log10(high), num = n_actions, base = 10)
 
         self.save_state_to_file = self.settings['Integration']['savestate']
         
@@ -104,11 +111,22 @@ class IntegrateEnv_Hermite(gym.Env):
         
         elif self.settings['Integration']['system'] == 'triple':
             self.n_bodies = 3
+
+            ranges = self.settings['Integration']['ranges_triple']
+            ranges_np = np.array(list(ranges.values()))
+
             bodies = Particles(self.n_bodies)
+            
             bodies.mass = (1.0, 1.0, 1.0) | units.MSun
             bodies[0].position = (0.0, 0.0, 0.0) | units.au
-            bodies[1].position = (10.0, 0.0, 0.0) | units.au
-            bodies[2].position = (0.0, 10.0, 0.0) | units.au
+
+            if self.seed_initial != "None":
+                np.random.seed(seed = self.seed_initial)
+            K = np.random.uniform(low = ranges_np[:, 0], high = ranges_np[:, 1])
+            # K = lhs(len(ranges), samples =  1) * (ranges_np[:, 1]- ranges_np[:, 0]) + ranges_np[:, 0] 
+            
+            bodies[1].position = (K[0], K[1], 0.0) | units.au
+            bodies[2].position = (K[2], K[3], 0.0) | units.au
             bodies[0].velocity = (0.0, 10.0, 0.0) | units.kms
             bodies[1].velocity = (-10.0, 0.0, 0.0) | units.kms
             self.converter = nbody_system.nbody_to_si(bodies.mass.sum(), 1 | units.au)
@@ -194,10 +212,12 @@ class IntegrateEnv_Hermite(gym.Env):
         g.parameters.dt_param = tstep_param 
         return g 
     
-    def reset(self, options = None, seed = None):
+    def reset(self, options = None, seed = None, steps = None, typereward = 0):
         if seed != None: 
             self.seed_initial = seed # otherwise use from the settings
         # super().reset(seed=seed) # We need to seed self.np_random
+
+        self.typereward = typereward # choice of reward function
 
         self.particles = self._initial_conditions(seed)
 
@@ -218,7 +238,8 @@ class IntegrateEnv_Hermite(gym.Env):
 
         # Initialize variables to save simulation
         if self.save_state_to_file == True:
-            steps = self.settings['Integration']['max_steps']
+            if steps == None:
+                steps = self.settings['Integration']['max_steps']
             self.state = np.zeros((steps, self.n_bodies, 8)) # action, mass, rx3, vx3, 
             self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
             self.comp_time = np.zeros(self.settings['Integration']['max_steps']) # computation time
@@ -236,8 +257,14 @@ class IntegrateEnv_Hermite(gym.Env):
         if Delta_E_prev == 0.0:
             return 0
         else:
-            return (W[0]* np.log10(abs(Delta_E)) + W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) /\
-                W[2]*np.log10(action)
+            if self.typereward == 0:
+                return -(W[0]* np.log10(abs(Delta_E)) + W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) /\
+                    W[2]*np.log10(action)
+            elif self.typereward == 1:
+                return -W[0]* np.log10(abs(Delta_E)) + np.log10(action)
+            elif self.typereward == 2:
+                return -np.log10(abs(Delta_E)) *action
+    
     
     def step(self, action):
 
