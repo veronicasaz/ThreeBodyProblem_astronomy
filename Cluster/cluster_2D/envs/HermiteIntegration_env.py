@@ -19,6 +19,7 @@ from pyDOE import lhs
 from plots import plot_state, plot_trajectory
 
 
+
 """
 https://www.gymlibrary.dev/content/environment_creation/
 
@@ -28,6 +29,7 @@ Questions:
 how to change the timestep parameter. now it doesn't make a difference. although even with the same values
 we get different energy errors (round-off error?)
 """
+
 def orbital_period(G, a, Mtot):
     return 2*np.pi*(a**3/(constants.G*Mtot)).sqrt()
 
@@ -210,14 +212,18 @@ class IntegrateEnv_Hermite(gym.Env):
             g = Hermite()
         # g.parameters.set_defaults()
         g.parameters.dt_param = tstep_param 
+        g.stopping_conditions.timeout_detection.enable()
         return g 
     
-    def reset(self, options = None, seed = None, steps = None, typereward = 0):
+    def reset(self, options = None, seed = None, steps = None, typereward = None):
         if seed != None: 
             self.seed_initial = seed # otherwise use from the settings
         # super().reset(seed=seed) # We need to seed self.np_random
 
-        self.typereward = typereward # choice of reward function
+        if typereward == None:
+            self.typereward = self.settings['Training']['reward_f']
+        else:
+            self.typereward = typereward # choice of reward function
 
         self.particles = self._initial_conditions(seed)
 
@@ -258,12 +264,24 @@ class IntegrateEnv_Hermite(gym.Env):
             return 0
         else:
             if self.typereward == 0:
-                return -(W[0]* np.log10(abs(Delta_E)) + W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) /\
-                    W[2]*np.log10(action)
+                return -(W[0]* np.log10(abs(Delta_E)) + \
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) *\
+                        W[2]*np.log10(action)
             elif self.typereward == 1:
-                return -W[0]* np.log10(abs(Delta_E)) + np.log10(action)
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))+\
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
+                         W[2]*1/abs(np.log10(action))
             elif self.typereward == 2:
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                         abs(np.log10(abs(Delta_E)))**2 +\
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
+                         W[2]*1/abs(np.log10(action))
+            elif self.typereward == 3:
+                return -W[0]* np.log10(abs(Delta_E)) + np.log10(action)
+            elif self.typereward == 4:
                 return -np.log10(abs(Delta_E)) *action
+            # elif self.typereward == 4:
+            #     return -np.log10(abs(Delta_E)) *action
     
     
     def step(self, action):
@@ -394,6 +412,8 @@ class IntegrateEnv_Hermite(gym.Env):
         plt.show()
 
         
+
+
 def load_json(filepath):
     """
     load json file as dictionary
