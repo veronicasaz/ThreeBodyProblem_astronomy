@@ -27,7 +27,7 @@ from TrainingFunctions import DQN, \
 # env = gym.make('cluster_2D:Cluster2D-v0') # example of how to create the env once it's been registered
 # env = gym.make('cluster_2D:SympleInt-v0') # example of how to create the env once it's been registered
 env = gym.make('cluster_2D:HermiteInt-v0') # example of how to create the env once it's been registered
-env.reset() # Resets the environment and returns a random initial state
+# env.reset() # Resets the environment and returns a random initial state
 
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -82,9 +82,12 @@ save_reward = list()
 save_EnergyE = list()
 
 # Training loop
+env.subfolder = "2_Training/"
+env.save_state_to_file = False
 for i_episode in range(settings['Training']['max_iter']):
     print("Training episode: %i"%i_episode)
     # Initialize the environment and get it's state
+    env.suffix = "_episode_i_episode"
     state, info = env.reset()
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     save_reward_list = list()

@@ -379,8 +379,8 @@ def plot_rewards(values, initializations, reward_functions, env = None, steps = 
         ax.set_xlabel('Energy error',  fontsize = labelsize)
         ax.set_ylabel('Reward',  fontsize = labelsize)
         ax.set_xscale('log')
-        # ax.set_yscale('symlog', linthresh = 4)
-        ax.tick_params(axis='both', which='major', labelsize=labelsize)
+        # ax.set_yscale('symlog', linthresh = 5)
+        # ax.tick_params(axis='both', which='major', labelsize=labelsize)
     
     fig.colorbar(sc, axbar)
 
@@ -422,7 +422,7 @@ def plot_runs_trajectory(cases, action, steps, seeds, env = None):
     plt.show()
     
 if __name__ == '__main__':
-    experiment = 2
+    experiment = 4
     
     if experiment == 0: 
         # plot trajectory with hermite for all combinations of actions, one initialization
@@ -476,7 +476,7 @@ if __name__ == '__main__':
         env_hermite.subfolder = name_subfolder
 
         cases = len(env_hermite.actions)
-        steps = 100
+        steps = 50
         initializations = 10
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
@@ -484,27 +484,29 @@ if __name__ == '__main__':
         reward_functions = [
                 [0, 1.0, 1.0, 1.0],
                 [0, 1.0, 1.0, 10.0],
-                [0, 1.0, 1.0, 100.0],
-                [0, 10.0, 1.0, 1.0],
-                [0, 10.0, 10.0, 1.0],
-                [1, 10.0, 0, 0],
-                [1, 1.0, 0, 0],
-                [1, 0.1, 0, 0],
-                [2, 0, 0, 0]
+                [1, 10.0, 1.0, 4.0],
+                [2, 1.0, 1.0, 4.0],
+                [2, 10.0, 1.0, 4.0],
+                [2, 20.0, 1.0, 4.0],
+                [2, 100.0, 1.0, 4.0],
+                [3, 1.0, 0, 0],
+                [4, 0, 0, 0]
             ]
         
         def runs_trajectory_initialization_cases(cases, steps, reward_functions):    
             for z in range(len(reward_functions)):
+            # for z in [5, 6]:
                 Reward = np.zeros((cases*initializations, steps))
                 for i in range(initializations):
                     for j in range(cases):
+                        print(z, i, j)
                         name_suff = ('Seed_%i_Case_%.2E_Rf_%i'%(seed[i], env_hermite.actions[j], z))
                         reward = run_trajectory(seed = seed[i], action = j, env = env_hermite,\
                                     name_suffix = name_suff, steps = steps, reward_f = reward_functions[z])
                         Reward[j+(cases*i), :] = reward
                 np.save(env_hermite.settings['Integration']['savefile'] + env_hermite.subfolder + '_reward_multiple_%i'%z, Reward)
                 
-        # runs_trajectory_initialization_cases(cases, steps, reward_functions)
+        runs_trajectory_initialization_cases(cases, steps, reward_functions)
         plot_rewards(values, initializations, reward_functions, steps = steps, env = env_hermite)
   
     elif experiment == 3:
@@ -513,37 +515,35 @@ if __name__ == '__main__':
         reward, EnergyError = load_reward(a)
         plot_reward(a, reward, EnergyError)
 
-    elif experiment == 3:
+    elif experiment == 4:
         ##########################################
         # Run all possibilities with Symple vs RL
         env_hermite = IntegrateEnv_Hermite()
         name_subfolder = "3_AllActionsRL/"
         env_hermite.subfolder = name_subfolder
+
+        cases = len(env_hermite.actions)
         steps = 10 
         values = list()
-        seed = 0
+        seed = 1
         
-        print(len(env_hermite.actions))
-        for i in range(len(env_hermite.actions)):
-            values.append([i]*steps)
-        # values.append(np.random.randint(0, len(env_symple.actions), size = steps))
+        def runs_trajectory_cases(cases, steps):
+            Reward = np.zeros((cases+1, steps))
+            for j in range(cases):
+                name_suff = ('_Case_%.2E'%(env_hermite.actions[j]))
+                reward = run_trajectory(seed = seed, action = j, env = env_hermite,\
+                               name_suffix = name_suff, steps = steps)
+                Reward[j, :] = reward
+            
+            reward = run_trajectory(seed = seed, action = 'RL', env = env_hermite,\
+                               name_suffix = name_suff, steps = steps)
+            Reward[j+1, :] = reward
+            np.save(env_hermite.settings['Integration']['savefile'] + env_hermite.subfolder + '_reward', Reward)
+            return Reward
+                
+        runs_trajectory_cases(cases, steps)
+        plot_steps(values, steps = steps, env = env_hermite, RL = True, reward_plot = True)
 
-        ###############################################
-        # If already run, this can be commented:
-        cases = len(values)
-        print(cases)
-        for j in range(cases):
-            print("Hermite simulations", len(values))
-            run_trajectory(seed = seed, action = values[j],
-                    env = env_hermite, name_suffix = "_Case_%i"%j, 
-                    steps = steps)
-
-        steps_taken = run_trajectory(seed = seed, action = 'RL',
-                    env = env_hermite, name_suffix = '_Case_RL', 
-                    steps = steps)
-        
-        ###############################################
-        plot_steps(values, steps = steps, env = env_hermite, RL = True)
 
 
 

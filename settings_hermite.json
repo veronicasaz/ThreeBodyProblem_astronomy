@@ -12,7 +12,7 @@
        "check_step": 1e1,
        "action": "range",
        "number_actions": 10,
-       "t_step_param": [1e-4, 5e-4, 1e-3, 5e-3, 1e-2, 5e-2, 1e-1], 
+       "t_step_param": [1e-4, 1e-3, 1e-2, 1e-1], 
        "seed": "None",
        "plot": false,
        "ranges": {
@@ -35,7 +35,8 @@
     {
     	"savemodel": "./HermiteIntegration_training/",
     	"display": true,
-        "weights": [1.0, 1.0, 100.0],
+ 	"reward_f": 2,
+        "weights": [100.0, 1.0, 4.0],
         "max_iter": 10000,
         "hidden_layers": 3,
         "neurons": 50,
