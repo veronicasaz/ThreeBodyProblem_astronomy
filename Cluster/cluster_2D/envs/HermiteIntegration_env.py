@@ -50,9 +50,9 @@ class IntegrateEnv_Hermite(gym.Env):
             low = self.settings['Integration']['t_step_param'][0]
             high = self.settings['Integration']['t_step_param'][-1]
             n_actions = self.settings['Integration']['number_actions']
-            self.actions = np.logspace(np.log10(low), np.log10(high), num = n_actions, base = 10)
-
-        self.save_state_to_file = self.settings['Integration']['savestate']
+            self.actions = np.logspace(np.log10(low), np.log10(high), \
+                                       num = n_actions, base = 10,
+                                       endpoint = True)
         
         self.action_space = gym.spaces.Discrete(len(self.actions)) 
         self.W = self.settings['Training']['weights']
@@ -158,7 +158,7 @@ class IntegrateEnv_Hermite(gym.Env):
             self.units_m = nbody_system.mass
 
         bodies.move_to_center()
-
+        print(bodies)
         # Plot initial state
         if self.settings['Integration']['plot'] == True:
             plot_state(bodies)
@@ -191,15 +191,34 @@ class IntegrateEnv_Hermite(gym.Env):
         Excluding the sun
         """
         # state is the position magnitude of each particle? 
-        state = np.zeros((self.n_bodies)*3) # m, all r, all v
         # for i in range(self.n_bodies):
         particles_p_nbody = self.converter.to_generic(particles.position).value_in(nbody_system.length)
         particles_v_nbody = self.converter.to_generic(particles.velocity).value_in(nbody_system.length/nbody_system.time)
         particles_m_nbody = self.converter.to_generic(particles.mass).value_in(nbody_system.mass)
 
-        state[0:self.n_bodies] = particles_m_nbody
-        state[self.n_bodies: 2*self.n_bodies]  = np.linalg.norm(particles_p_nbody, axis = 1)
-        state[2*self.n_bodies: 3*self.n_bodies] = np.linalg.norm(particles_v_nbody, axis = 1)
+        if self.settings['Integration']['state'] == 'norm':
+            state = np.zeros((self.n_bodies)*3) # m, norm r, norm v
+
+            state[0:self.n_bodies] = particles_m_nbody
+            state[self.n_bodies: 2*self.n_bodies]  = np.linalg.norm(particles_p_nbody, axis = 1)
+            state[2*self.n_bodies: 3*self.n_bodies] = np.linalg.norm(particles_v_nbody, axis = 1)
+       
+        elif self.settings['Integration']['state'] == 'cart':
+            state = np.zeros((self.n_bodies)*4) # all r, all v
+            for i in range(self.n_bodies):
+                state[2*i:2*i+2] = particles_p_nbody[i, 0:2]/10 # convert to 2D
+                state[2*self.n_bodies + 2*i: 2*self.n_bodies + 2*i+2] = particles_v_nbody[i, 0:2]
+        
+        elif self.settings['Integration']['state'] == 'dist':
+            state = np.zeros((self.n_bodies)*2) # dist r, dist v
+
+            counter = 0
+            for i in range(self.n_bodies):
+                for j in range(i+1, self.n_bodies):
+                    state[counter]  = np.linalg.norm(particles_p_nbody[i,:]-particles_p_nbody[j,:], axis = 0) /10
+                    state[self.n_bodies+counter ] = np.linalg.norm(particles_v_nbody[i,:]-particles_v_nbody[j,:], axis = 0)
+                    counter += 1
+
         # state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
         # state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
         return state
@@ -213,9 +232,10 @@ class IntegrateEnv_Hermite(gym.Env):
         # g.parameters.set_defaults()
         g.parameters.dt_param = tstep_param 
         g.stopping_conditions.timeout_detection.enable()
+        g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
         return g 
     
-    def reset(self, options = None, seed = None, steps = None, typereward = None):
+    def reset(self, options = None, seed = None, steps = None, typereward = None, save_state = None):
         if seed != None: 
             self.seed_initial = seed # otherwise use from the settings
         # super().reset(seed=seed) # We need to seed self.np_random
@@ -243,6 +263,11 @@ class IntegrateEnv_Hermite(gym.Env):
         self.t0_comp = time.time()
 
         # Initialize variables to save simulation
+        if save_state == None:
+            self.save_state_to_file = self.settings['Integration']['savestate']
+        else:
+            self.save_state_to_file = save_state
+
         if self.save_state_to_file == True:
             if steps == None:
                 steps = self.settings['Integration']['max_steps']
@@ -306,8 +331,8 @@ class IntegrateEnv_Hermite(gym.Env):
         # for i, t in enumerate(times[1:]):
             # self.gravity.evolve_model(t)
             # self.channel.copy()
+        info_error = self._get_info()
         if self.save_state_to_file == True:
-            info_error = self._get_info()
             self._savestate(action, self.iteration, self.gravity.particles, info_error[0], info_error[1]) # save initial state
         
         # Get information for the reward
@@ -325,7 +350,7 @@ class IntegrateEnv_Hermite(gym.Env):
 
         # Display information at each step
         if self.settings['Training']['display'] == True:
-            self._display_info(info)
+            self._display_info(info, reward, action)
 
         if self.settings['Integration']['plot'] == True:
             plot_state(self.gravity.particles)
@@ -375,11 +400,12 @@ class IntegrateEnv_Hermite(gym.Env):
                     np.linalg.norm(body2.position.value_in(self.units_l) - body1.position.value_in(self.units_l))
         return ke, pe
 
-    def _display_info(self, info):
-        print("Iteration: %i/%i, E_E = %0.3E, E_L = %0.3E"%(self.iteration, \
+    def _display_info(self, info, reward, action):
+        print("Iteration: %i/%i, E_E = %0.3E, Action: %i, Reward: %.4E"%(self.iteration, \
                                  self.settings['Integration']['max_steps'],\
                                  info[0],\
-                                 np.linalg.norm(info[1])))
+                                 action, \
+                                 reward))
         
     def _savestate(self, action, step, bodies, E, L):
         self.state[step, :, 0] = action

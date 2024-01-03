@@ -27,11 +27,13 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
     env.suffix = name_suffix
     if steps == None:
         steps = env.settings['Integration']['max_steps']
-    if reward_f == None:
-        reward_f = [0]
-    else:
+    
+    if reward_f != None:
+        reward_type = reward_f[0] # overload weights
         env.W = reward_f[1:] # overload weights
-    state, info = env.reset(seed = seed, steps = steps, typereward = reward_f[0])
+    else:
+        reward_type = env.settings['Training']['reward_f']
+    state, info = env.reset(seed = seed, steps = steps, typereward = reward_type)
 
     reward = np.zeros(steps)
     i = 0
@@ -44,16 +46,17 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         model.eval()
         
         steps_taken = list()
+        steps_taken.append(0) # initial conditions
         
         while i < steps-1:
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             action = model(state).max(1)[1].view(1, 1)
             steps_taken.append(action.item())
-            state, reward[i], terminated, info = env.step(action.item())
+            state, y, terminated, info = env.step(action.item())
+            reward[i] = env.reward
             i += 1
         env.close()
         np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken', np.array(steps_taken))
-        return steps_taken
     else:
         while i < steps-1:
             if type(action) == int:
@@ -96,9 +99,28 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30)
                     c = colors[j%len(colors)])
                     # marker = markers[j//len(colors)],)
         
+    ax.legend()
     ax.set_xlabel('x (m)', fontsize = labelsize)
     ax.set_ylabel('y (m)', fontsize = labelsize)
     
+def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 15, steps = 30):
+    n_planets = np.shape(state)[1]
+    Dist = []
+    Labels = []
+    for i in range(n_planets):
+        r1 = state[0:steps, i, 2:5]
+        m = state[0, i, 1]
+        for j in range(i+1, n_planets):
+            r2 = state[0:steps, j, 2:5]
+            Dist.append(np.linalg.norm(r2-r1, axis = 1))
+            Labels.append('%i-%i'%(i, j))
+        
+        size_marker = np.log(m)/30
+    for i in range(len(Dist)):
+        ax.plot(x_axis, Dist[i], label = Labels[i])
+    ax.legend()
+
+
 def plot_actions_taken(ax, x_axis, y_axis, label = None):
     colors = colors2[0]
     ax.plot(x_axis, y_axis, color = colors, marker = '.', linestyle = ':', alpha = 0.5)

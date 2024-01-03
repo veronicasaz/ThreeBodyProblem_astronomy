@@ -103,11 +103,20 @@ def load_reward(a):
             Energy_r = list()
             for j in y.split():
                 Energy_r.append(float(j))
-            EnergyE.append(score_r)
+            EnergyE.append(Energy_r)
 
-    return score, EnergyE
+    HuberLoss = []
+    # with open(a.settings['Training']['savemodel'] + "HuberLoss.txt", "r") as f:
+    #     # for line in f:
+    #     for y in f.read().split('\n'):
+    #         HuberLoss_r = list()
+    #         for j in y.split():
+    #             HuberLoss_r.append(float(j))
+    #         HuberLoss.append(HuberLoss_r)
 
-def plot_reward(a, reward, Eerror):
+    return score, EnergyE, HuberLoss
+
+def plot_reward(a, reward, Eerror, HuberLoss):
     episodes = len(reward)
     x_episodes = np.arange(episodes)
 
@@ -116,11 +125,13 @@ def plot_reward(a, reward, Eerror):
     reward_flat = list()
     energyerror_flat = list()
     episode_end_list = list()
+    huberloss_flat = list()
 
     for i in range(episodes):
         steps_perepisode[i] = len(reward[i])
         cumul_reward_perepisode[i] = sum(reward[i])
         reward_flat = reward_flat + reward[i][1:]
+        # huberloss_flat = huberloss_flat + HuberLoss[i][1:]
         try:
             energyerror_flat = energyerror_flat + Eerror[i][1:]
         except:
@@ -130,27 +141,40 @@ def plot_reward(a, reward, Eerror):
 
     x_all = np.arange(len(reward_flat))
     
-    f, ax = plt.subplots(3, 1)
+    f, ax = plt.subplots( 4, 1, figsize = (8,8))
+    plt.subplots_adjust(left=0.1, right=0.99, top=0.99, bottom=0.08, hspace = 0.3)
+    fontsize = 15
+
     ax[0].plot(x_episodes, steps_perepisode, color = 'darkblue', alpha = 0.5)
-    yy = savgol_filter(np.ravel(steps_perepisode), 101, 2)
+    yy = savgol_filter(np.ravel(steps_perepisode), 101, 1)
     ax[0].plot(x_episodes, yy, color = 'darkblue')
-    ax[0].set_xlabel('Episodes')
-    ax[0].set_ylabel('Steps per episode')
+    ax[0].set_xlabel('Episodes', fontsize = fontsize)
+    ax[0].set_ylabel('Steps per episode', fontsize = fontsize)
+    ax[0].set_yscale('log')
 
-    # ax[1].plot(x_all, energyerror_flat, color = 'darkblue', alpha = 0.5)
-    # yy = savgol_filter(energyerror_flat, 101, 2)
-    # ax[1].plot(x_episodes, yy, color = 'darkblue')
-    ax[1].set_xlabel('Steps')
-    ax[1].set_ylabel('Energy Error')
+    ax[1].plot(x_episodes, cumul_reward_perepisode, color = 'darkblue', alpha = 0.5)
+    yy = savgol_filter(np.ravel(cumul_reward_perepisode), 101, 1)
+    ax[1].plot(x_episodes, yy, color = 'darkblue')
+    ax[1].set_xlabel('Episodes', fontsize = fontsize)
+    ax[1].set_ylabel('Cumulative reward per episode', fontsize = fontsize)
+    ax[1].set_yscale('symlog')
 
-    ax[2].plot(x_all, reward_flat, color = 'darkblue', alpha = 0.5)
-    yy = savgol_filter(np.ravel(reward_flat), 101, 2)
-    ax[2].plot(x_all, yy, color = 'darkblue')
+    # ax[2].plot(x_all, huberloss_flat, color = 'darkblue', alpha = 0.5)
+    # # yy = savgol_filter(energyerror_flat, 101, 2)
+    # # ax[1].plot(x_episodes, yy, color = 'darkblue')
+    # ax[2].set_xlabel('Steps', fontsize = fontsize)
+    # ax[2].set_ylabel('Huber Loss', fontsize = fontsize)
+    # ax[2].set_yscale('symlog')
+
+    ax[3].plot(x_all, reward_flat, color = 'darkblue', alpha = 0.5)
+    # yy = savgol_filter(np.ravel(reward_flat), 101, 2)
+    # ax[2].plot(x_all, yy, color = 'darkblue')
 
     index = np.where(np.array(episode_end_list) == 1)[0]
-    ax[2].scatter(x_all[index], yy[index], c = 'r', marker= '.')
-    ax[2].set_xlabel('Steps')
-    ax[2].set_ylabel('Reward')
+    # ax[2].scatter(x_all[index], yy[index], c = 'r', marker= '.')
+    ax[3].set_xlabel('Steps', fontsize = fontsize)
+    ax[3].set_ylabel('Reward', fontsize = fontsize)
+    ax[3].set_yscale('symlog')
 
     plt.savefig(a.settings['Training']['savemodel']+'_cumulative_reward.png', dpi = 100)
     plt.show()
@@ -195,10 +219,11 @@ def optimize_model(policy_net, target_net, memory, \
     # Compute Huber loss
     criterion = nn.SmoothL1Loss()
     loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
-
     # Optimize the model
     optimizer.zero_grad()
     loss.backward()
     # In-place gradient clipping
     torch.nn.utils.clip_grad_value_(policy_net.parameters(), 100)
     optimizer.step()
+
+    return loss

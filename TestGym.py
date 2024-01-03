@@ -57,6 +57,8 @@ n_actions = env.action_space.n
 # env.settings['Integration']['seed'] = None # random seed
 
 # Get the number of state observations
+env.save_state_to_file = False
+
 state, info = env.reset()
 n_observations = len(state)
 
@@ -80,28 +82,28 @@ else:
 
 save_reward = list()
 save_EnergyE = list()
+save_huberloss = list()
 
 # Training loop
 env.subfolder = "2_Training/"
-env.save_state_to_file = False
 for i_episode in range(settings['Training']['max_iter']):
     print("Training episode: %i"%i_episode)
     # Initialize the environment and get it's state
-    env.suffix = "_episode_i_episode"
-    state, info = env.reset()
+    state, info = env.reset(save_state = False)
+
     state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
     save_reward_list = list()
     save_EnergyE_list = list()
+    save_huberloss_list = list()
 
     # Do first step without updating the networks
     action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
     observation, reward_p, terminated, info = env.step(action.item())
 
-    for t in range(settings['Integration']['max_steps']):
+    for t in range(settings['Integration']['max_steps']-1):
         action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
         observation, reward_p, terminated, info = env.step(action.item())
         # reward += reward_p # TODO: is this correct? otherwise rewards are not related
-        
         save_reward_list.append(reward_p)
         save_EnergyE_list.append(info['Energy_error'])
 
@@ -112,7 +114,6 @@ for i_episode in range(settings['Training']['max_iter']):
         else:
             next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
 
-        print(reward)
         # Store the transition in memory
         memory.push(state, action, next_state, reward)
 
@@ -120,9 +121,14 @@ for i_episode in range(settings['Training']['max_iter']):
         state = next_state
 
         # Perform one step of the optimization (on the policy network)
-        optimize_model(policy_net, target_net, memory, \
+        Huber_loss = optimize_model(policy_net, target_net, memory, \
                    Transition, device, GAMMA, BATCH_SIZE,\
                    optimizer)
+        
+        if Huber_loss == None:
+            save_huberloss_list.append(0)
+        else:
+            save_huberloss_list.append(Huber_loss.item())
 
         # Soft update of the target network's weights
         # θ′ ← τ θ + (1 −τ )θ′
@@ -139,8 +145,13 @@ for i_episode in range(settings['Training']['max_iter']):
     env.close()
     save_reward.append(save_reward_list)
     save_EnergyE.append(save_EnergyE_list)
+    save_huberloss.append(save_huberloss_list)
     
-    torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights.pth') # save model
+    if i_episode %100 == 0:
+        torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights'+str(i_episode)+'.pth') # save model
+    else:
+        torch.save(policy_net.state_dict(), settings['Training']['savemodel'] + 'model_weights.pth') # save model
+
     # save training
     with open(env.settings['Training']['savemodel']+"rewards.txt", "w") as f:
         for ss in save_reward:
@@ -150,6 +161,12 @@ for i_episode in range(settings['Training']['max_iter']):
 
     with open(env.settings['Training']['savemodel']+"EnergyError.txt", "w") as f:
         for ss in save_EnergyE:
+            for s in ss:
+                f.write(str(s) +" ")
+            f.write("\n")
+
+    with open(env.settings['Training']['savemodel']+"HuberLoss.txt", "w") as f:
+        for ss in save_huberloss:
             for s in ss:
                 f.write(str(s) +" ")
             f.write("\n")
