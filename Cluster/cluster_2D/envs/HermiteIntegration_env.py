@@ -186,7 +186,7 @@ class IntegrateEnv_Hermite(gym.Env):
         Delta_L = (L - self.L_0) / self.L_0
         return Delta_E, Delta_L
     
-    def _get_state(self, particles): 
+    def _get_state(self, particles, E): 
         """
         Excluding the sun
         """
@@ -204,10 +204,11 @@ class IntegrateEnv_Hermite(gym.Env):
             state[2*self.n_bodies: 3*self.n_bodies] = np.linalg.norm(particles_v_nbody, axis = 1)
        
         elif self.settings['Integration']['state'] == 'cart':
-            state = np.zeros((self.n_bodies)*4) # all r, all v
+            state = np.zeros((self.n_bodies)*4+1) # all r, all v
             for i in range(self.n_bodies):
                 state[2*i:2*i+2] = particles_p_nbody[i, 0:2]/10 # convert to 2D
                 state[2*self.n_bodies + 2*i: 2*self.n_bodies + 2*i+2] = particles_v_nbody[i, 0:2]
+                state[-1] = -np.log10(abs(E))
         
         elif self.settings['Integration']['state'] == 'dist':
             state = np.zeros((self.n_bodies)*2) # dist r, dist v
@@ -257,7 +258,7 @@ class IntegrateEnv_Hermite(gym.Env):
         self.E_0, self.L_0 = self._get_info_initial()
 
         # state = self.gravity.particles
-        state_RL = self._get_state(self.particles) # |r_i|, |v_i|
+        state_RL = self._get_state(self.particles, self.E_0) # |r_i|, |v_i|
         self.iteration = 0
         self.t_cumul = 0.0 # cumulative time for integration
         self.t0_comp = time.time()
@@ -288,23 +289,41 @@ class IntegrateEnv_Hermite(gym.Env):
         if Delta_E_prev == 0.0:
             return 0
         else:
-            if self.typereward == 0:
+            if self.typereward == 1:
                 return -(W[0]* np.log10(abs(Delta_E)) + \
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) *\
-                        W[2]*np.log10(action)
-            elif self.typereward == 1:
-                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))+\
-                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
-                         W[2]*1/abs(np.log10(action))
+                        (1/W[2]*abs(np.log10(action)))
+            # elif self.typereward == 1:
+            #     return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))+\
+            #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
+            #              W[2]*1/abs(np.log10(action))
             elif self.typereward == 2:
                 return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
                          abs(np.log10(abs(Delta_E)))**2 +\
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
                          W[2]*1/abs(np.log10(action))
+
             elif self.typereward == 3:
-                return -W[0]* np.log10(abs(Delta_E)) + np.log10(action)
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                         abs(np.log10(abs(Delta_E)))**2 +\
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
+                         W[2]*1/abs(np.log10(action))
+            # elif self.typereward == 3:
+            #     if np.log10(abs(Delta_E)) > -8: # larger energy error
+            #         return -W[0]*np.log10(abs(Delta_E)) -\
+            #                 W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))
+            #     else:
+            #         return -(W[1]*(Delta_E-Delta_E_prev))+\
+            #                 W[2]*1/abs(np.log10(action))
+
+                
+            # elif self.typereward == 4:
+            #     return -W[0]* np.log10(abs(Delta_E)) + W[2]/abs(np.log10(action))
             elif self.typereward == 4:
-                return -np.log10(abs(Delta_E)) *action
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                         abs(np.log10(abs(Delta_E)))**2 +\
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
+                         W[2]*action
             # elif self.typereward == 4:
             #     return -np.log10(abs(Delta_E)) *action
     
@@ -338,7 +357,7 @@ class IntegrateEnv_Hermite(gym.Env):
         # Get information for the reward
         T = time.time() - t0_step
         info = self._get_info()
-        state = self._get_state(self.gravity.particles)
+        state = self._get_state(self.gravity.particles, info_error[0])
         reward = self._calculate_reward(info_error, self.info_prev, T, self.actions[action], self.W) # Use computation time for this step, including changing integrator
         self.reward = reward
         self.info_prev = info_error

@@ -11,8 +11,10 @@
        "max_steps": 1000,
        "check_step": 1e1,
        "action": "range",
-       "number_actions": 10,
+       "number_actions": 6,
        "t_step_param": [1e-4, 1e-3, 1e-2, 1e-1], 
+       "state": "cart",
+       "state_options_info": ["norm", "cart", "dist"],
        "seed": "None",
        "plot": false,
        "ranges": {
@@ -27,7 +29,7 @@
        "ranges_triple": {
           "x1": [5.0, 20.0],
           "y1": [0.0, 10.0],
-          "x2": [0.0, 10.0],
+          "x2": [0.0, -10.0],
           "y2": [5.0, 20.0]
        }
      },
@@ -36,11 +38,11 @@
     	"savemodel": "./HermiteIntegration_training/",
     	"display": true,
  	"reward_f": 2,
-        "weights": [100.0, 1.0, 4.0],
-        "max_iter": 10000,
+        "weights": [1.0, 10.0, 4.0],
+        "max_iter": 5000,
         "hidden_layers": 3,
-        "neurons": 50,
-        "lr": 5e-5,
+        "neurons": 100,
+        "lr": 5e-4,
         "batch_size": 128,
         "gamma": 0.99,
         "eps_start": 0.9,

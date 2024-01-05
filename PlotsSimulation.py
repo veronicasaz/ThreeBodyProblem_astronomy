@@ -10,8 +10,8 @@ from Cluster.cluster_2D.envs.HermiteIntegration_env import IntegrateEnv_Hermite
 
 
 # colors = ['orange', 'green', 'blue', 'red', 'grey', 'black']
-colors = ['darkgoldenrod', 'mediumseagreen', 'coral', 'indianred', \
-        'navy', 'deepskyblue', 'steelblue', 'mediumslateblue']
+colors = ['steelblue', 'darkgoldenrod', 'mediumseagreen', 'coral',  \
+        'mediumslateblue', 'deepskyblue', 'navy']
 colors2 = ['navy']
 lines = ['-', '--', ':', '-.' ]
 markers = ['o', 'x', '.', '^', 's']
@@ -57,6 +57,17 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
             i += 1
         env.close()
         np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken', np.array(steps_taken))
+    elif action == 'random':
+        while i < steps-1:
+            action = np.random.randint(0, len(env.actions))
+            if type(action) == int:
+                x, y, terminated, zz = env.step(action)
+                reward[i] = env.reward
+            else:
+                x, y, terminated, zz = env.step(action[i%len(action)])
+                reward[i] = env.reward
+            i += 1
+        env.close()
     else:
         while i < steps-1:
             if type(action) == int:
@@ -78,7 +89,7 @@ def load_state_files(env, steps, namefile = None):
 
     return state, cons, tcomp
 
-def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30):
+def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30, legend_on = True):
     n_planets = np.shape(state)[1]
     for j in range(n_planets):
         x = state[0:steps, j, 2]
@@ -88,7 +99,7 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30)
 
         ax.scatter(x[0], y[0], s = 20*size_marker,\
                    c = colors[j%len(colors)], \
-                    label = name_planets[j])
+                    label = "Particle "+ name_planets[j])
         ax.plot(x[1:], y[1:], marker = None, 
                     markersize = size_marker, \
                     linestyle = '-',\
@@ -99,11 +110,12 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30)
                     c = colors[j%len(colors)])
                     # marker = markers[j//len(colors)],)
         
-    ax.legend()
+    if legend_on == True:
+        ax.legend(fontsize = labelsize)
     ax.set_xlabel('x (m)', fontsize = labelsize)
     ax.set_ylabel('y (m)', fontsize = labelsize)
     
-def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 15, steps = 30):
+def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps = 30):
     n_planets = np.shape(state)[1]
     Dist = []
     Labels = []
@@ -113,12 +125,12 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 15, steps
         for j in range(i+1, n_planets):
             r2 = state[0:steps, j, 2:5]
             Dist.append(np.linalg.norm(r2-r1, axis = 1))
-            Labels.append('%i-%i'%(i, j))
+            Labels.append('Particle %i-%i'%(i, j))
         
         size_marker = np.log(m)/30
     for i in range(len(Dist)):
-        ax.plot(x_axis, Dist[i], label = Labels[i])
-    ax.legend()
+        ax.plot(x_axis, Dist[i], label = Labels[i], linewidth = 2.5)
+    ax.legend(fontsize =labelsize, framealpha = 0.5)
 
 
 def plot_actions_taken(ax, x_axis, y_axis, label = None):
@@ -126,10 +138,10 @@ def plot_actions_taken(ax, x_axis, y_axis, label = None):
     ax.plot(x_axis, y_axis, color = colors, marker = '.', linestyle = ':', alpha = 0.5)
 
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 
-                   colorindex = None, linestyle = None):
+                   colorindex = None, linestyle = None, linewidth = 1):
     if colorindex != None:
         color = colors[(colorindex+3)%len(colors)] # start in the blues
-    ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label)
+    ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label, linewidth = linewidth)
 
 
 # if __name__ == '__main__':
