@@ -8,7 +8,7 @@
        "system": "triple",
        "info options_system":["planetary", "cluster", "triple"],
        "n_bodies": 3, 
-       "max_steps": 1000,
+       "max_steps": 200,
        "check_step": 1e1,
        "action": "range",
        "number_actions": 6,

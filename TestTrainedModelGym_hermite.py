@@ -280,7 +280,7 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
             label = 'RL'
             linestyle = '-'
         else:
-            label = r"$\mu$ =%.2E"%(env.actions[i])
+            label = r"$%i: \mu$ =%.2E"%(i, env.actions[i])
             linestyle = lines[i%len(lines)]
         plot_evolution(ax4, x_axis, E_E[:, i], label = label, colorindex = i, linestyle = linestyle, linewidth = linewidth)
         plot_evolution(ax5, x_axis, T_c[:, i], label = label, colorindex = i, linestyle = linestyle, linewidth = linewidth)
@@ -297,7 +297,7 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         ax7.set_ylabel('Action taken', fontsize = labelsize)
         ax7.set_yticks(np.arange(0, cases-1))
         
-    ax3.set_ylabel(r'$\vert\vert fr_i - r_j\vert\vert$', fontsize = labelsize)
+    ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$', fontsize = labelsize)
     ax4.set_ylabel('Energy error',  fontsize = labelsize)
     ax5.set_xlabel('Step', fontsize = labelsize)
     ax5.set_ylabel('Comp. time (s)', fontsize = labelsize)
@@ -906,7 +906,7 @@ if __name__ == '__main__':
         steps = 100
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
-        seed = 1
+        seed = 7
         def runs_trajectory_cases(cases, steps):
             Reward = np.zeros((cases+1, steps)) # RL
             for j in range(cases):
@@ -947,7 +947,7 @@ if __name__ == '__main__':
         steps = 100
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
-        seed = 0
+        seed = 6
         def runs_trajectory_cases(cases, steps):
             for z in range(len(reward_functions)):
                 Reward = np.zeros((cases, steps))
