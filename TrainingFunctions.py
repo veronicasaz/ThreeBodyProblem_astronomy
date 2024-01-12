@@ -153,7 +153,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
 
     x_all = np.arange(len(reward_flat))
     
-    f, ax = plt.subplots(3, 1, figsize = (10,6))
+    f, ax = plt.subplots(2, 1, figsize = (10,6))
     plt.subplots_adjust(left=0.15, right=0.99, top=0.99, bottom=0.1, hspace = 0.2)
     fontsize = 17
 
@@ -164,7 +164,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
             y2[xlen*i:xlen*(i+1)] *=  np.quantile(y[xlen*i:xlen*(i+1)], 0.5)
         return y2
 
-    pts = 11
+    pts = 51
     ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 0.5)
     yy = savgol_filter(np.ravel(steps_perepisode), pts, 1)    
     # y2 = filter(x_episodes, yy)
@@ -188,18 +188,18 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     ax[1].tick_params(axis='x', labelsize=fontsize-3)
     ax[1].tick_params(axis='y', labelsize=fontsize-3)
 
-    ax[2].plot(x_episodes, last_energy_perepisode, color = colors[0], alpha = 0.5)
-    yy = savgol_filter(np.ravel(last_energy_perepisode), pts, 1)
-    # y2 = filter(x_episodes, yy)
-    # ax[1].plot(x_episodes, y2, color = 'red')
-    ax[2].plot(x_episodes, yy, color = 'black')
-    ax[2].set_xlabel('Episode', fontsize = fontsize)
-    ax[2].set_ylabel('$\Delta E_{{Final}}$ ', fontsize = fontsize)
-    # ax[2].set_yscale('symlog', linthresh = 1e-6)
-    ax[2].set_yscale('log')
-    ax[2].tick_params(axis='x', labelsize=fontsize-3)
-    ax[2].tick_params(axis='y', labelsize=fontsize-3)
-    # ax[1].set_xscale('log')
+    # ax[2].plot(x_episodes, last_energy_perepisode, color = colors[0], alpha = 0.5)
+    # yy = savgol_filter(np.ravel(last_energy_perepisode), pts, 1)
+    # # y2 = filter(x_episodes, yy)
+    # # ax[1].plot(x_episodes, y2, color = 'red')
+    # ax[2].plot(x_episodes, yy, color = 'black')
+    # ax[2].set_xlabel('Episode', fontsize = fontsize)
+    # ax[2].set_ylabel('$\Delta E_{{Final}}$ ', fontsize = fontsize)
+    # # ax[2].set_yscale('symlog', linthresh = 1e-6)
+    # ax[2].set_yscale('log')
+    # ax[2].tick_params(axis='x', labelsize=fontsize-3)
+    # ax[2].tick_params(axis='y', labelsize=fontsize-3)
+    # # ax[1].set_xscale('log')
 
     # ax[2].plot(x_all, huberloss_flat, color = 'darkblue', alpha = 0.5)
     # # yy = savgol_filter(energyerror_flat, 101, 2)
@@ -270,77 +270,3 @@ def optimize_model(policy_net, target_net, memory, \
 
     return loss
 
-def plot_int_comparison(I, steps, ENV):
-    fig = plt.figure(figsize = (10,14))
-    gs1 = matplotlib.gridspec.GridSpec(len(I)+2, 1, figure = fig, left=0.08, wspace=0.3, 
-                                       hspace = 0.5, right = 0.99,
-                                        top = 0.97, bottom = 0.11)
-
-
-    for z in range(len(I)):
-        #############################################
-        # Load run information for symple cases
-        state = list()
-        cons = list()
-        tcomp = list()
-        name = list()
-        state_i, cons_i, tcomp_i = load_state_files(ENV[z], steps, namefile = '_Case_RL')
-        state.append(state_i)
-        cons.append(cons_i)
-        tcomp.append(tcomp_i)
-        
-
-        if steps == None:
-            steps = len(cons[0][:,0])
-
-        #############################################
-        cases = 1
-        # Calculate the energy errors
-        E_E = np.zeros((steps, cases))
-        E_M = np.zeros((steps, cases))
-        T_c = np.zeros((steps, cases))
-        for i in range(cases):
-            E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
-            E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
-            T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
-
-        x_axis = np.arange(0, steps, 1)
-        labelsize = 12
-
-        ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
-        ax1.set_title(I[i])
-
-        ################TODOOOOOOOOOOOOOOOOOOO
-        if z == 0:
-            ax0 = fig.add_subplot(gs1[0, 0])
-            name_planets = np.arange(np.shape(state)[1]).astype(str) 
-            ax0.set_yscale('log')
-            ax0.set_ylabel('Pair-wise distance', fontsize = labelsize)
-            ax0.tick_params(axis='both', which='major', labelsize=labelsize)
-            
-        ax1.set_yscale('symlog')
-
-        # Plot energy errors
-        lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
-
-        for i in range(cases): # plot all combinations with constant dt and order
-            # label = 'O%i, t_step = %1.1E'%(env.actions[values[i][0]][0], env.actions[values[i][0]][1])
-            label = "Tstep parameter %.2E"%(env.actions[i])
-            linestyle = lines[i%len(lines)]
-            # plot_evolution(ax4, x_axis, E_E[:, i], label = label, colorindex = i, linestyle = linestyle)
-            plot_evolution(ax1, x_axis[1:-1], Reward[i, 1:-1], label = label, colorindex = i, linestyle = linestyle)
-        
-        if z == len(rewards)-1:
-            ax1.set_xlabel('Step', fontsize = labelsize)
-            ax1.legend(loc='upper center', bbox_to_anchor=(0.5, -0.52), \
-                       fancybox = True, ncol = cases//2+cases%2, fontsize = labelsize)
-
-        ax1.set_ylabel(r'$\vert\vert fr_i - r_j\vert\vert$')
-            
-        # ax[1].set_ylabel('Angular momentum error', fontsize = labelsize)
-        # ax1.set_xlabel('Step', fontsize = labelsize)
-        ax1.set_ylabel('Reward',  fontsize = labelsize)
-        ax1.tick_params(axis='both', which='major', labelsize=labelsize)
-    
-    plt.savefig('./MixedIntegration_runs/'+ 'Comparison_steps.png', dpi = 100)
-    plt.show()

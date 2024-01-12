@@ -9,6 +9,8 @@ from amuse.units import units, constants, nbody_system
 from amuse.ic.kingmodel import new_king_model
 from amuse.community.hermite.interface import Hermite
 from amuse.community.ph4.interface import ph4
+from amuse.community.symple.interface import symple
+from amuse.community.huayno.interface import Huayno
 from amuse.ext.solarsystem import new_solar_system
 from amuse.ext.orbital_elements import  generate_binaries
 from amuse.lab import new_powerlaw_mass_distribution, Particles
@@ -17,8 +19,6 @@ from amuse.ic.kingmodel import new_king_model
 from pyDOE import lhs
 
 from plots import plot_state, plot_trajectory
-
-
 
 """
 https://www.gymlibrary.dev/content/environment_creation/
@@ -33,23 +33,27 @@ we get different energy errors (round-off error?)
 def orbital_period(G, a, Mtot):
     return 2*np.pi*(a**3/(constants.G*Mtot)).sqrt()
 
-class IntegrateEnv_Hermite(gym.Env):
-    def __init__(self, render_mode = None, bodies = None, subfolder = '', suffix = ''):
-        self.settings = load_json("./settings_hermite.json")
-        if bodies == None:
-            self.n_bodies = self.settings['Integration']['n_bodies']
+class IntegrateEnv_multiple(gym.Env):
+    def __init__(self, render_mode = None, integrator = None, subfolder = '', suffix = ''):
+        self.settings = load_json("./settings_multiple.json")
+        self.n_bodies = self.settings['Integration']['n_bodies']
         self.size = 4*self.n_bodies #TODO: fix observation space
         self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.size), \
                                                 high=np.array([np.inf]*self.size), \
                                                 dtype=np.float64)
-        
+
+        if integrator == None:
+            self.integrator = 'Hermite'
+        else:
+            self.integrator = integrator
+
         # Create actions:
-        if self.settings['Integration']['action'] == 'array':
+        if self.settings['Integration'][self.integrator]['action'] == 'array':
             self.actions = self.settings['Integration']['t_step_param']
-        elif self.settings['Integration']['action'] == 'range':
-            low = self.settings['Integration']['t_step_param'][0]
-            high = self.settings['Integration']['t_step_param'][-1]
-            n_actions = self.settings['Integration']['number_actions']
+        elif self.settings['Integration'][self.integrator]['action'] == 'range':
+            low = self.settings['Integration'][self.integrator]['t_step_param'][0]
+            high = self.settings['Integration'][self.integrator]['t_step_param'][-1]
+            n_actions = self.settings['Integration'][self.integrator]['number_actions']
             self.actions = np.logspace(np.log10(low), np.log10(high), \
                                        num = n_actions, base = 10,
                                        endpoint = True)
@@ -58,11 +62,11 @@ class IntegrateEnv_Hermite(gym.Env):
         self.W = self.settings['Training']['weights']
         self.seed_initial = self.settings['Integration']['seed']
 
-        self.suffix = suffix # added info for saving files
         self.subfolder = subfolder
+        self.suffix = suffix # added info for saving files
 
     def _add_bodies(self, bodies):
-        ranges = self.settings['Integration']['ranges']
+        ranges = self.settings['Integration'][self.integrator]['ranges']
         ranges_np = np.array(list(ranges.values()))
 
         if self.seed_initial != "None":
@@ -211,7 +215,7 @@ class IntegrateEnv_Hermite(gym.Env):
                 state[-1] = -np.log10(abs(E))
         
         elif self.settings['Integration']['state'] == 'dist':
-            state = np.zeros((self.n_bodies)*2+1) # dist r, dist v
+            state = np.zeros((self.n_bodies)*2) # dist r, dist v
 
             counter = 0
             for i in range(self.n_bodies):
@@ -220,25 +224,56 @@ class IntegrateEnv_Hermite(gym.Env):
                     state[self.n_bodies+counter ] = np.linalg.norm(particles_v_nbody[i,:]-particles_v_nbody[j,:], axis = 0)
                     counter += 1
 
-            state[-1] = -np.log10(abs(E))
-            
-
-        # state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
-        # state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
         return state
     
 
-    def _initialize_integrator(self, tstep_param):
-        if self.settings['Integration']['units'] == 'si':
-            g = Hermite(self.converter)
-        else:
-            g = Hermite()
+    def _initialize_integrator(self, action):
+        if self.integrator == 'Hermite': 
+            if self.settings['Integration']['units'] == 'si':
+                g = Hermite(self.converter)
+            else:
+                g = Hermite()
+            g.stopping_conditions.timeout_detection.enable()
+            g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+        elif self.integrator == 'Ph4': 
+            if self.settings['Integration']['units'] == 'si':
+                g = ph4(self.converter)
+            else:
+                g = ph4()
+            # g.stopping_conditions.timeout_detection.enable()
+            g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+            # g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+        elif self.integrator == 'Huayno': 
+            if self.settings['Integration']['units'] == 'si':
+                g = Huayno(self.converter)
+            else:
+                g = Huayno()
+            g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+        elif self.integrator == 'Symple': 
+            if self.settings['Integration']['units'] == 'si':
+                g = symple(self.converter, redirection ='none')
+            else:
+                g = symple(redirection ='none')
+            g.initialize_code()
+
+        g = self.apply_action(g, action)
+            
+            # g.parameters.timestep_parameter = tstep_param
         # g.parameters.set_defaults()
-        g.parameters.dt_param = tstep_param 
-        g.stopping_conditions.timeout_detection.enable()
-        g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+
         return g 
     
+    def apply_action(self, g, action):
+        if self.integrator == 'Hermite':
+            g.parameters.dt_param = action
+        elif self.integrator == 'Ph4':
+            g.parameters.timestep_parameter = action
+        elif self.integrator == 'Huayno':
+            g.time_param = action
+        elif self.integrator == 'Symple':
+            g.parameters.timestep = action | self.units_time
+        return g
+
     def reset(self, options = None, seed = None, steps = None, typereward = None, save_state = None):
         if seed != None: 
             self.seed_initial = seed # otherwise use from the settings
@@ -277,7 +312,7 @@ class IntegrateEnv_Hermite(gym.Env):
                 steps = self.settings['Integration']['max_steps']
             self.state = np.zeros((steps, self.n_bodies, 8)) # action, mass, rx3, vx3, 
             self.cons = np.zeros((steps, 5)) # action, E, Lx3, 
-            self.comp_time = np.zeros(steps) # computation time
+            self.comp_time = np.zeros(self.settings['Integration']['max_steps']) # computation time
             self._savestate(0, 0, self.particles, 0.0, 0.0) # save initial state
 
         self.info_prev = [0.0, 0.0]
@@ -293,75 +328,44 @@ class IntegrateEnv_Hermite(gym.Env):
             return 0
         else:
             if self.typereward == 1:
-                a = -(W[0]* np.log10(abs(Delta_E)) + \
+                return -(W[0]* np.log10(abs(Delta_E)) + \
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) *\
                         (W[2]*1/abs(np.log10(action)))
-                return a
-            # elif self.typereward == 1:
-            #     return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))+\
-            #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
-            #              W[2]*1/abs(np.log10(action))
             elif self.typereward == 2:
-                a = -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
                          abs(np.log10(abs(Delta_E)))**2 +\
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
                          W[2]*1/abs(np.log10(action))
-                return a
 
             elif self.typereward == 3:
-                a = -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
                          abs(np.log10(abs(Delta_E)))**2 +\
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
                          W[2]*1/abs(np.log10(action))
-                return a
-                # (W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))/\
-                        #  W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
-                        #  abs(np.log10(abs(Delta_E)))**2)+\
-            # elif self.typereward == 3:
-            #     if np.log10(abs(Delta_E)) > -8: # larger energy error
-            #         return -W[0]*np.log10(abs(Delta_E)) -\
-            #                 W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))
-            #     else:
-            #         return -(W[1]*(Delta_E-Delta_E_prev))+\
-            #                 W[2]*1/abs(np.log10(action))
 
-                
             elif self.typereward == 4:
-                a = -W[0]*np.log10(abs(Delta_E)) + \
-                    W[2]/abs(np.log10(action))
-                return a
-            # elif self.typereward == 4:
-            #     return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
-            #              abs(np.log10(abs(Delta_E)))**2 +\
-            #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))/abs(Delta_E)))+\
-            #              W[2]*1/abs(np.log10(action))
-                         
-            # elif self.typereward == 4:
-            #     return -np.log10(abs(Delta_E)) *action
-    
+                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                         abs(np.log10(abs(Delta_E)))**2 +\
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
+                         W[2]*action
     
     def step(self, action):
-
         self.iteration += 1
 
-        check_step = self.settings['Integration']['check_step'] # final time for step integration
+        check_step = self.settings['Integration'][self.integrator]['check_step'] # final time for step integration
         t0_step = time.time()
         # print("Action", self.actions[action])
 
         # Apply action
-        self.gravity.parameters.dt_param = self.actions[action] 
+        self.gravity = self.apply_action(self.gravity, self.actions[action])
 
         self.t_cumul += check_step
 
         # Integrate
-        # self.gravity.evolve_model(check_step | self.units_time)
         t = (self.t_cumul) | self.units_time
         self.gravity.evolve_model(t)
         self.channel.copy()
 
-        # for i, t in enumerate(times[1:]):
-            # self.gravity.evolve_model(t)
-            # self.channel.copy()
         info_error = self._get_info()
         if self.save_state_to_file == True:
             self._savestate(action, self.iteration, self.gravity.particles, info_error[0], info_error[1]) # save initial state
@@ -401,10 +405,6 @@ class IntegrateEnv_Hermite(gym.Env):
         return state, reward, terminated, info
     
     def close(self): #TODO: needed?
-        # if self.window is not None:
-        #     pygame.display.quit()
-        #     pygame.quit()
-        # plot_trajectory(self.settings)
         self.gravity.stop()
 
     def calculate_angular_m(self, particles):
@@ -468,7 +468,6 @@ class IntegrateEnv_Hermite(gym.Env):
         plt.legend()
         plt.show()
 
-        
 
 
 def load_json(filepath):
@@ -479,100 +478,3 @@ def load_json(filepath):
         data = json.load(jsonFile)
     jsonFile.close()
     return data
-
-
-# Test environment
-
-# def run_many_hermite_cases(values):
-#     cases = len(values)
-#     a = IntegrateEnv()
-#     for j in range(cases):
-#         print("Case %i"%j)
-#         print(values[j][0])
-#         print(a.actions[values[j][0]])
-#         a.suffix = ('_case%i'%j)
-#         value = values[j]
-#         terminated = False
-#         i = 0
-#         a.reset()
-#         while terminated == False:
-#             x, y, terminated, zz = a.step(value[i%len(value)])
-#             i += 1
-#         a.close()
-
-# def evaluate_many_symple_cases(values):
-#     cases = len(values)
-#     a = IntegrateEnv()
-
-#     # Load run information
-#     state = list()
-#     cons = list()
-#     for i in range(cases):
-#         a.suffix = ('_case%i'%i)
-#         state.append(a.loadstate()[0])
-#         cons.append(a.loadstate()[1])
-
-
-#     bodies = len(state[0][0,:,0])
-#     steps = len(cons[0][:,0])
-    
-#     # Calculate the energy errors
-#     # baseline = cons[4] # Take highest order as a baseline
-#     E_E = np.zeros((steps, cases))
-#     E_M = np.zeros((steps, cases))
-#     for i in range(cases):
-#         # E_E[:, i] = abs((cons[i][:, 1] - cons[i][0, 1])/ cons[i][0, 1]) # absolute relative energy error
-#         # E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:])/ cons[i][0, 2:], axis = 1) # relative angular momentum error
-#         E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
-#         E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
-
-
-#     # plot
-#     colors = ['red', 'green', 'blue', 'orange', 'grey', 'yellow', 'black']
-#     labels = ['Order 1', 'Order 2', 'Order 3', 'Order 5', 'Order 10', 'Mixed order']
-
-#     fig, ax = plt.subplots(2, 1, layout = 'constrained')
-#     x_axis = np.arange(0, steps, 1)
-#     for i in range(cases):
-#         ax[0].plot(x_axis, E_E[:, i], color = colors[i], label = 't_step = %E'%(a.actions[values[i][0]]))
-#         ax[1].plot(x_axis, E_M[:, i], color = colors[i], label = 't_step = %E'%(a.actions[values[i][0]]))
-
-#     ax[0].legend()
-#     ax[0].set_yscale('log')
-#     ax[0].set_ylabel('Energy error')
-#     ax[1].set_ylabel('Angular momentum error')
-#     ax[1].set_xlabel('Step')
-
-#     plt.show()
-    
-
-
-# # settings = load_json("./settings.json")
-# # Run all possibilities
-# a = IntegrateEnv()
-# steps = 100 # large value just in case
-# values = list()
-# for i in range(len(a.actions)):
-#     values.append([i]*steps)
-
-# # values = values[0:4]
-# values.append(np.random.randint(0, len(a.actions), size = steps))
-# run_many_symple_cases(values)
-# evaluate_many_symple_cases(values)
-
-
-# # a = IntegrateEnv()
-# # terminated = False
-# # i = 0
-# # a.reset()
-# # value = values[0]
-# # print(value)
-
-# # while terminated == False:
-# #     print("dsklfjsdk", value[i%len(value)])
-# #     x, y, terminated, zz = a.step(value[i%len(value)])
-# #     i += 1
-# # a.close()
-
-# # a.plot_orbit()
-

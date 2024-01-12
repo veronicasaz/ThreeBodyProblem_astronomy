@@ -18,7 +18,7 @@ markers = ['o', 'x', '.', '^', 's']
 
 def run_trajectory(seed = 123, action = 'RL', env = None, 
                    name_suffix = None, steps = None,
-                   reward_f = None, model_path = None):
+                   reward_f = None, model_path = None, steps_suffix= None):
     """
     Run one initialization with RL or with an integrator
     """
@@ -65,7 +65,7 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
             reward[i] = env.reward
             i += 1
         env.close()
-        np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken', np.array(steps_taken))
+        np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken'+steps_suffix, np.array(steps_taken))
     elif action == 'random':
         while i < steps-1:
             action = np.random.randint(0, len(env.actions))
