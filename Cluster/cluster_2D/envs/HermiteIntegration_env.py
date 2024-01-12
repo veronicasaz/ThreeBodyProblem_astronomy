@@ -211,7 +211,7 @@ class IntegrateEnv_Hermite(gym.Env):
                 state[-1] = -np.log10(abs(E))
         
         elif self.settings['Integration']['state'] == 'dist':
-            state = np.zeros((self.n_bodies)*2) # dist r, dist v
+            state = np.zeros((self.n_bodies)*2+1) # dist r, dist v
 
             counter = 0
             for i in range(self.n_bodies):
@@ -219,6 +219,9 @@ class IntegrateEnv_Hermite(gym.Env):
                     state[counter]  = np.linalg.norm(particles_p_nbody[i,:]-particles_p_nbody[j,:], axis = 0) /10
                     state[self.n_bodies+counter ] = np.linalg.norm(particles_v_nbody[i,:]-particles_v_nbody[j,:], axis = 0)
                     counter += 1
+
+            state[-1] = -np.log10(abs(E))
+            
 
         # state[0:self.n_bodies] = np.linalg.norm(particles.position.value_in(self.units_l), axis = 1)
         # state[self.n_bodies:2*self.n_bodies] = np.linalg.norm(particles.velocity.value_in(self.units_l/self.units_t), axis = 1)
@@ -290,24 +293,30 @@ class IntegrateEnv_Hermite(gym.Env):
             return 0
         else:
             if self.typereward == 1:
-                return -(W[0]* np.log10(abs(Delta_E)) + \
+                a = -(W[0]* np.log10(abs(Delta_E)) + \
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) *\
-                        (1/W[2]*abs(np.log10(action)))
+                        (W[2]*1/abs(np.log10(action)))
+                return a
             # elif self.typereward == 1:
             #     return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))+\
             #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
             #              W[2]*1/abs(np.log10(action))
             elif self.typereward == 2:
-                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                a = -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
                          abs(np.log10(abs(Delta_E)))**2 +\
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))+\
                          W[2]*1/abs(np.log10(action))
+                return a
 
             elif self.typereward == 3:
-                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                a = -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
                          abs(np.log10(abs(Delta_E)))**2 +\
                          W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
                          W[2]*1/abs(np.log10(action))
+                return a
+                # (W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))/\
+                        #  W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                        #  abs(np.log10(abs(Delta_E)))**2)+\
             # elif self.typereward == 3:
             #     if np.log10(abs(Delta_E)) > -8: # larger energy error
             #         return -W[0]*np.log10(abs(Delta_E)) -\
@@ -317,13 +326,16 @@ class IntegrateEnv_Hermite(gym.Env):
             #                 W[2]*1/abs(np.log10(action))
 
                 
-            # elif self.typereward == 4:
-            #     return -W[0]* np.log10(abs(Delta_E)) + W[2]/abs(np.log10(action))
             elif self.typereward == 4:
-                return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
-                         abs(np.log10(abs(Delta_E)))**2 +\
-                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
-                         W[2]*action
+                a = -W[0]*np.log10(abs(Delta_E)) + \
+                    W[2]/abs(np.log10(action))
+                return a
+            # elif self.typereward == 4:
+            #     return -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+            #              abs(np.log10(abs(Delta_E)))**2 +\
+            #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))/abs(Delta_E)))+\
+            #              W[2]*1/abs(np.log10(action))
+                         
             # elif self.typereward == 4:
             #     return -np.log10(abs(Delta_E)) *action
     

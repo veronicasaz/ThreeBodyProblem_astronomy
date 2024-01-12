@@ -18,7 +18,7 @@ markers = ['o', 'x', '.', '^', 's']
 
 def run_trajectory(seed = 123, action = 'RL', env = None, 
                    name_suffix = None, steps = None,
-                   reward_f = None):
+                   reward_f = None, model_path = None):
     """
     Run one initialization with RL or with an integrator
     """
@@ -33,6 +33,9 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         env.W = reward_f[1:] # overload weights
     else:
         reward_type = env.settings['Training']['reward_f']
+    
+    if model_path == None:
+        model_path = env.settings['Training']['savemodel'] +'model_weights.pth'
     state, info = env.reset(seed = seed, steps = steps, typereward = reward_type)
 
     reward = np.zeros(steps)
@@ -42,11 +45,17 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         n_actions = env.action_space.n
         n_observations = len(state)
         model = DQN(n_observations, n_actions, settings = env.settings) # we do not specify ``weights``, i.e. create untrained model
-        model.load_state_dict(torch.load(env.settings['Training']['savemodel'] +'model_weights.pth'))
+        model.load_state_dict(torch.load(model_path))
         model.eval()
         
         steps_taken = list()
         steps_taken.append(0) # initial conditions
+
+        # Do first step manually
+        # state, y, terminated, info = env.step(0)
+        # steps_taken.append(0)
+        # reward[0] = env.reward
+        # i += 1
         
         while i < steps-1:
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
@@ -131,11 +140,13 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps
     for i in range(len(Dist)):
         ax.plot(x_axis, Dist[i], label = Labels[i], linewidth = 2.5)
     ax.legend(fontsize =labelsize, framealpha = 0.5)
+    ax.set_yscale('log')
 
 
 def plot_actions_taken(ax, x_axis, y_axis, label = None):
     colors = colors2[0]
     ax.plot(x_axis, y_axis, color = colors, marker = '.', linestyle = ':', alpha = 0.5)
+    ax.grid(axis='y')
 
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 
                    colorindex = None, linestyle = None, linewidth = 1):

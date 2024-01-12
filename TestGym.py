@@ -96,7 +96,7 @@ for i_episode in range(settings['Training']['max_iter']):
     save_EnergyE_list = list()
     save_huberloss_list = list()
 
-    # Do first step without updating the networks
+    # Do first step without updating the networks and with the best step
     action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
     observation, reward_p, terminated, info = env.step(action.item())
 
