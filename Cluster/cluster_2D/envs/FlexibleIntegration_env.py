@@ -269,7 +269,7 @@ class IntegrateEnv_multiple(gym.Env):
         elif self.integrator == 'Ph4':
             g.parameters.timestep_parameter = action
         elif self.integrator == 'Huayno':
-            g.time_param = action
+            g.parameters.timestep_parameter = action
         elif self.integrator == 'Symple':
             g.parameters.timestep = action | self.units_time
         return g
@@ -372,7 +372,7 @@ class IntegrateEnv_multiple(gym.Env):
         
         # Get information for the reward
         T = time.time() - t0_step
-        info = self._get_info()
+
         state = self._get_state(self.gravity.particles, info_error[0])
         reward = self._calculate_reward(info_error, self.info_prev, T, self.actions[action], self.W) # Use computation time for this step, including changing integrator
         self.reward = reward
@@ -385,7 +385,7 @@ class IntegrateEnv_multiple(gym.Env):
 
         # Display information at each step
         if self.settings['Training']['display'] == True:
-            self._display_info(info, reward, action)
+            self._display_info(info_error, reward, action)
 
         if self.settings['Integration']['plot'] == True:
             plot_state(self.gravity.particles)

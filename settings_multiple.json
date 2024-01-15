@@ -46,14 +46,14 @@
 		"check_step": 1e-1,
 		"action": "range",
 		"number_actions": 6,
-		"t_step_param": [1e-7, 1e-3, 1e-2, 1e-4]
+		"t_step_param": [1e-5, 1e-1]
 		},
 	"Symple":
 		{
 		"check_step": 1e-1,
 		"action": "range",
 		"number_actions": 6,
-		"t_step_param": [1e-6, 1e-3, 1e-3]
+		"t_step_param": [5e-5, 1e-1]
 		}
      },
      "Training":

@@ -234,7 +234,7 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     #############################################
     # plot
     fig = plt.figure(figsize = (10,10))
-    labelsize = 18
+    labelsize = 24
     linewidth = 2.5
 
     if RL == True: 
@@ -245,12 +245,12 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         plots_v += 2
 
     if RL == True:
-        fig = plt.figure(figsize = (12, 16))
+        fig = plt.figure(figsize = (12, 18))
     else:
         fig = plt.figure(figsize = (12, 18))
-    gs1 = matplotlib.gridspec.GridSpec(plots_v, 2, figure = fig, left=0.1, wspace=0.3, 
+    gs1 = matplotlib.gridspec.GridSpec(plots_v, 2, figure = fig, left=0.13, wspace=0.3, 
                                        hspace = 1.7, right = 0.99,
-                                        top = 0.98, bottom = 0.12)
+                                        top = 0.97, bottom = 0.14)
     ax1 = fig.add_subplot(gs1[0:3, 0]) # cartesian symple
     ax2 = fig.add_subplot(gs1[0:3, 1]) # cartesian another step
     ax3 = fig.add_subplot(gs1[3:5, :]) # pairwise distance
@@ -269,15 +269,15 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     name_planets = np.arange(np.shape(state)[1]).astype(str)    
     
     # Do it for RL
-    plot_planets_trajectory(ax1, state[0], name_planets, steps = steps)
-    plot_planets_distance(ax3, x_axis, state[0], name_planets, steps = steps, labelsize = labelsize-2)
+    plot_planets_trajectory(ax1, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+    plot_planets_distance(ax3, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
     
     if RL == True:
-        plot_planets_trajectory(ax2, state[-1], name_planets, steps = steps)
-        ax2.set_title(r"RL-variable $\mu$")
+        plot_planets_trajectory(ax2, state[-1]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+        ax2.set_title(r"RL-variable $\mu$", fontsize = labelsize+2)
     else:
         plot_planets_trajectory(ax2, state[-1], name_planets, steps = steps)
-        ax2.set_title(r"$\mu = %.2E$"%(env_hermite.actions[-1]))
+        ax2.set_title(r"$\mu = %.2E$"%(env_hermite.actions[-1]), fontsize = labelsize+2)
 
     # Plot energy errors
     lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
@@ -296,7 +296,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         if reward_plot == True:
             plot_evolution(ax6, x_axis, Reward[i, :], label = label, colorindex = i, linestyle = linestyle, linewidth = linewidth)
     
-
     if RL == True:
     # plot RL and actions
         label = 'RL'
@@ -305,14 +304,12 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         ax7.set_ylabel('Action taken', fontsize = labelsize)
         ax7.set_yticks(np.arange(0, cases-1))
         
-    ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$ (m)', fontsize = labelsize)
+    ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$ (au)', fontsize = labelsize)
     ax4.set_ylabel('Energy error',  fontsize = labelsize)
     ax4.set_xlabel('Step', fontsize = labelsize)
     # ax5.set_ylabel('Comp. time (s)', fontsize = labelsize)
 
-    ax1.set_title("Tstep_param = %.2E"%(env_hermite.actions[0]))
-
-
+    ax1.set_title(r"$\mu$ = %.2E"%(env_hermite.actions[0]), fontsize = labelsize+2)
     ax4.set_yscale('log')
     ax6.set_ylabel('Reward',  fontsize = labelsize)
 
@@ -320,8 +317,14 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     for ax_i in [ax1, ax2, ax3, ax4,  ax6, ax7]:
         ax_i.tick_params(axis='both', which='major', labelsize=labelsize-2)
     
-    ax4.legend(loc='upper center', bbox_to_anchor=(0.5, -0.4), \
-                       fancybox = True, ncol = 4, fontsize = labelsize-2)
+    handles, labels = ax4.get_legend_handles_labels()
+    ax4.scatter(0,0 , color = 'white', label = ' ')
+    ax4.scatter(0,0 , color = 'white', label = ' ')
+    # handles.append([handles[0], handles[0]])
+    # labels.append(['a ', ' q'])
+    print(handles, labels)
+    ax4.legend(loc='upper center', bbox_to_anchor=(0.45, -0.38), \
+                       fancybox = True, ncol = 3, fontsize = labelsize-2)
     
     if save_path != None:
         plt.savefig(save_path)
@@ -702,7 +705,7 @@ def plot_runs_trajectory(cases, action, steps, seeds, env = None):
             legend_on = True
         else:
             legend_on = False
-        plot_planets_trajectory(ax, state[i], name_planets, labelsize = label_size, steps = steps, legend_on = legend_on)
+        plot_planets_trajectory(ax, state[i]/1.496e11, name_planets, labelsize = label_size, steps = steps, legend_on = legend_on)
         ax.set_title("Seed = %i"%(seeds[i]), fontsize = label_size+2)
         
         #     ax.legend(fontsize = label_size)
@@ -841,9 +844,9 @@ def plot_int_comparison(I, steps, ENV):
         if z == 0:
             ax0 = fig.add_subplot(gs1[0, 0])
             name_planets = np.arange(np.shape(state)[1]).astype(str) 
-            plot_planets_distance(ax0, x_axis, state[0], name_planets, steps = steps, labelsize = labelsize)
+            plot_planets_distance(ax0, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
             ax0.set_yscale('log')
-            ax0.set_ylabel('Pair-wise distance', fontsize = labelsize+1)
+            ax0.set_ylabel('Pair-wise \n distance (au)', fontsize = labelsize+1)
             ax0.tick_params(axis='both', which='major', labelsize=labelsize)
             
         ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
@@ -934,10 +937,10 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     alphavalue = 0.5
     alphavalue2 = 0.9
     # bins = 100
-    # X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1], Tcomp_final[:, 2]]
-    # Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1], E_final[:, 2]]
-    X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1]]
-    Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1]]
+    X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1], Tcomp_final[:, 2]]
+    Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1], E_final[:, 2]]
+    # X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1]]
+    # Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1]]
     labels = [r'$\mu = $%.1E'%env.actions[0], r'$\mu = $%.1E'%env.actions[-1],"RL", r'$\mu = $%.1E'%env.actions[2]]
     markers = ['o', 'x', 's', 'o']
 
@@ -994,9 +997,112 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     
     plt.savefig('./HermiteIntegration_runs/'+ env.subfolder+'Hermite_comparison_steps_rewards.png', dpi = 100)
     plt.show()
+
+def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL = True, reward_plot = False):
+    if env == None:
+        env = IntegrateEnv_Hermite()
+
+    cases = len(I)
+
+
+    E_final = np.zeros((initializations, cases))
+    Tcomp_final = np.zeros((initializations, cases))
+    E_final2 = np.zeros((initializations, cases))
+    Tcomp_final2 = np.zeros((initializations, cases))
+
+    for z in range(initializations):
+        cases = len(I)
+
+        #############################################
+        # Load run information for symple cases
+        state = list()
+        cons = list()
+        tcomp = list()
+
+        state_2 = list()
+        cons_2 = list()
+        tcomp_2 = list()
+
+        for k in range(cases):
+            state_i, cons_i, tcomp_i = load_state_files(ENV[k], steps, namefile ='Accurate_%s_%i'%(I[k], z))
+            state.append(state_i)
+            cons.append(cons_i)
+            tcomp.append(tcomp_i)
+
+            state_i, cons_i, tcomp_i = load_state_files(ENV[k], steps, namefile ='Inaccurate_%s_%i'%(I[k], z))
+            state_2.append(state_i)
+            cons_2.append(cons_i)
+            tcomp_2.append(tcomp_i)
+
+        if steps == None:
+            steps = len(cons[0][:,0])
+
+        #############################################
+        # Calculate the energy errors
+        E_E = np.zeros((steps, cases))
+        T_c = np.zeros((steps, cases))
+        E_E2 = np.zeros((steps, cases))
+        T_c2 = np.zeros((steps, cases))
+        for i in range(cases):
+            E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
+            T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
+            E_E2[:, i] = abs(cons_2[i][:, 1]) # absolute relative energy error
+            T_c2[:, i] = np.cumsum(tcomp_2[i]) # add individual computation times
+
+        E_final[z, :] = E_E[-1, :]
+        Tcomp_final[z, :] = T_c[-1, :]
+        E_final2[z, :] = E_E2[-1, :]
+        Tcomp_final2[z, :] = T_c2[-1, :]
+
+
+    fig = plt.figure(figsize = (6, 5))
+    gs1 = matplotlib.gridspec.GridSpec(1, 1, figure = fig,\
+                                       left=0.15, wspace=0.3, 
+                                       hspace = 0.2, right = 0.99,
+                                        top = 0.97, bottom = 0.11)
+    
+    msize = 50
+    alphavalue = 0.5
+    alphavalue2 = 0.9
+    # bins = 100
+    X = [Tcomp_final[:, 0], Tcomp_final[:, 1],Tcomp_final[:, 2]]
+    Y = [E_final[:, 0], E_final[:, 1], E_final[:, 2]]
+    X2 = [Tcomp_final2[:, 0], Tcomp_final2[:, 1],Tcomp_final2[:, 2]]
+    Y2 = [E_final2[:, 0], E_final2[:, 1], E_final2[:, 2]]
+    markers = ['o', 'x', 's', 'o']
+
+
+    ax1 = fig.add_subplot(gs1[0, 0]) 
+    labels1 = [r'%s: $\mu$ = %.1E'%(I[0], ENV[0].actions[0]),\
+                r'%s: $\mu$ = %.1E'%(I[1], ENV[1].actions[0]),\
+                r'%s: $\Delta t$ = %.1E'%(I[2], ENV[2].actions[0])]
+    
+    labels2 = [r'%s: $\mu$ = %.1E'%(I[0], ENV[0].actions[5]),\
+                r'%s: $\mu$ = %.1E'%(I[1], ENV[1].actions[5]),\
+                r'%s: $\Delta t$ = %.1E'%(I[2], ENV[2].actions[5])]
+
+    for i in range(len(X)):
+        ax1.scatter(X[i], Y[i], color = colors[i], marker = markers[0],\
+                s = msize, label = labels1[i], alpha = alphavalue)
+        ax1.scatter(X2[i], Y2[i], color = colors[i], marker = markers[1],\
+                s = msize, label = labels2[i], alpha = alphavalue)
+    
+    labelsize = 12
+    ax1.legend(fontsize = labelsize)
+    ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
+    ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
+    ax1.set_yscale('log')
+    ax1.set_xscale('log')
+    ax1.tick_params(axis='both', which='major', labelsize=labelsize)
+    ax1.set_xlim([6e-1, 0.8e1])
+    ax1.set_ylim([1e-13, 1e5])
+    
+    plt.savefig('./MixedIntegration_runs/Comparison_integr.png', dpi = 100)
+    plt.show()
     
 if __name__ == '__main__':
-    experiment = 7
+    experiment = 4
+
     seed = 0
     
     if experiment == 0: 
@@ -1116,7 +1222,7 @@ if __name__ == '__main__':
 
 
         cases = len(env_hermite.actions)
-        steps = 300
+        steps = 200
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
         # seed = 0
@@ -1204,31 +1310,51 @@ if __name__ == '__main__':
     elif experiment == 7:
         ################################################
         # Compare for different integrators
+        I = ['Hermite', 'Huayno', 'Symple']
+
+        ENV = list()
+        for i in range(len(I)):
+            env = IntegrateEnv_multiple(integrator = I[i])
+            name_subfolder = I[i]+'/'
+            env.subfolder = name_subfolder
+
+            ENV.append(env)
+
+        model_path = env.settings['Training']['savemodel'] + 'model_weights' +str(2100)+ '.pth'
+        
+        # I = ['Ph4', 'Huayno']
+        def runs_trajectory_cases(steps):
+                for i in range(len(I)):
+                    name_suff = '_'+I[i] 
+                    
+                    reward = run_trajectory(seed = 0, action = 'RL', env = ENV[i],\
+                                    name_suffix = name_suff, steps = steps, model_path= model_path, \
+                                    steps_suffix= I[i])
+                    
+        def runs_trajectory_fixed(steps, initializations, seed):
+            for j in range(initializations):
+                for i in range(len(I)):
+                    name_suff = ('Accurate_%s_%i'%(I[i], j))
+                    print(I[i], j, ENV[i].actions)
+                    reward = run_trajectory(seed = seed[j], action = 0, env = ENV[i],\
+                                    name_suffix = name_suff, steps = steps, model_path= model_path, \
+                                    steps_suffix= I[i])
+                    name_suff = ('Inaccurate_%s_%i'%(I[i], j))
+                    reward = run_trajectory(seed = seed[j], action = 5, env = ENV[i],\
+                                    name_suffix = name_suff, steps = steps, model_path= model_path, \
+                                    steps_suffix= I[i])
+                    ENV[i].close()
+
         seed = 0
         steps = 300
-
-        I = ['Hermite', 'Huayno', 'Symple']
-        # I = ['Ph4', 'Huayno']
-        ENV = list()
-        def runs_trajectory_cases(steps):
-            for i in range(len(I)):
-                env = IntegrateEnv_multiple(integrator = I[i])
-                model_path = env.settings['Training']['savemodel'] + 'model_weights' +str(2100)+ '.pth'
-
-                name_subfolder = I[i]+'/'
-                env.subfolder = name_subfolder
-
-                env.settings['Integration'][I[i]]['check_step'] = 1e-1
-
-                name_suff = '_'+I[i]
-                reward = run_trajectory(seed = seed, action = 'RL', env = env,\
-                                name_suffix = name_suff, steps = steps, model_path= model_path, \
-                                steps_suffix= I[i])
-                ENV.append(env)
-            return ENV
-                
-        ENV = runs_trajectory_cases(steps)
+        # runs_trajectory_cases(steps)
         plot_int_comparison(I, steps, ENV)
+
+        steps = 100
+        initializations = 100
+        seed = np.arange(initializations)
+        # runs_trajectory_fixed(steps, initializations, seed)
+        # plot_EvsTcomp_integrators(I, initializations, steps = steps, env = ENV, RL = True, reward_plot = True)
 
 
     elif experiment == 8:

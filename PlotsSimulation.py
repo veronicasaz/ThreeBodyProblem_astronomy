@@ -18,7 +18,7 @@ markers = ['o', 'x', '.', '^', 's']
 
 def run_trajectory(seed = 123, action = 'RL', env = None, 
                    name_suffix = None, steps = None,
-                   reward_f = None, model_path = None, steps_suffix= None):
+                   reward_f = None, model_path = None, steps_suffix= ''):
     """
     Run one initialization with RL or with an integrator
     """
@@ -121,8 +121,8 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30,
         
     if legend_on == True:
         ax.legend(fontsize = labelsize)
-    ax.set_xlabel('x (m)', fontsize = labelsize)
-    ax.set_ylabel('y (m)', fontsize = labelsize)
+    ax.set_xlabel('x (au)', fontsize = labelsize)
+    ax.set_ylabel('y (au)', fontsize = labelsize)
     
 def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps = 30):
     n_planets = np.shape(state)[1]

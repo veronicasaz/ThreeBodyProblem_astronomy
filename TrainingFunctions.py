@@ -155,7 +155,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     
     f, ax = plt.subplots(2, 1, figsize = (10,6))
     plt.subplots_adjust(left=0.15, right=0.99, top=0.99, bottom=0.1, hspace = 0.2)
-    fontsize = 17
+    fontsize = 20
 
     def filter(x, y):
         xlen = 500
@@ -164,7 +164,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
             y2[xlen*i:xlen*(i+1)] *=  np.quantile(y[xlen*i:xlen*(i+1)], 0.5)
         return y2
 
-    pts = 51
+    pts = 101
     ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 0.5)
     yy = savgol_filter(np.ravel(steps_perepisode), pts, 1)    
     # y2 = filter(x_episodes, yy)
