@@ -261,7 +261,7 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         ax7 = fig.add_subplot(gs1[5:7, :]) # actions
     if reward_plot == True:
         ax6 = fig.add_subplot(gs1[7:9, :]) # reward
-        ax6.set_yscale('symlog')
+        ax6.set_yscale('symlog', linthresh = 1e1)
 
     x_axis = np.arange(0, steps, 1)
 
@@ -270,7 +270,7 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     
     # Do it for RL
     plot_planets_trajectory(ax1, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
-    plot_planets_distance(ax3, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+    distance = plot_planets_distance(ax3, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
     
     if RL == True:
         plot_planets_trajectory(ax2, state[-1]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
@@ -304,6 +304,34 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         ax7.set_ylabel('Action taken', fontsize = labelsize)
         ax7.set_yticks(np.arange(0, cases-1))
         
+    
+
+    # Draw vertical lines for close encounters
+    X_vert = []
+    for D in distance:
+        # x = 5
+        # for j in range(int(len(distance)//x)):
+            # index_x = np.where(D = min(D[j*x:j*x+x]))[0]
+            # print(index_x)
+        index_x = np.where(D < 1)[0]
+        X_vert.append(index_x)
+    def flatten(xss):
+        return [x for xs in xss for x in xs]
+    X_vert = flatten(X_vert)
+    
+    prev = 0
+    for X_D in X_vert:
+        print(prev, X_D)
+        # if X_D - prev >2:
+        for ax_vert in [ax3, ax6, ax7]:
+            ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
+                    clip_on = False, alpha = 0.2, linestyle = '--')
+        for ax_vert in [ax4]:
+            ax_vert.axvline(x=X_D, ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
+                        clip_on = False, alpha = 0.2, linestyle = '--')
+        prev = X_D
+                
+
     ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$ (au)', fontsize = labelsize)
     ax4.set_ylabel('Energy error',  fontsize = labelsize)
     ax4.set_xlabel('Step', fontsize = labelsize)
@@ -312,7 +340,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     ax1.set_title(r"$\mu$ = %.2E"%(env_hermite.actions[0]), fontsize = labelsize+2)
     ax4.set_yscale('log')
     ax6.set_ylabel('Reward',  fontsize = labelsize)
-
 
     for ax_i in [ax1, ax2, ax3, ax4,  ax6, ax7]:
         ax_i.tick_params(axis='both', which='major', labelsize=labelsize-2)
@@ -533,9 +560,10 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
             cons.append(cons_i)
             tcomp.append(tcomp_i)
             name.append('Seed_%i_Case_%.2E'%(i, env_hermite.actions[j]))
-
+            
             E_E[i*cases+j, :] = abs(cons_i[:, 1]) # absolute relative energy error
             Delta_EE[i*cases+j, :-1] = -(np.log10(abs(cons_i[1:, 1])) - np.log10(abs(cons_i[:-1, 1])))  # relative energy error minus previous step
+            # Delta_EE[i*cases+j, :-1] = cons_i[1:, 1] - cons_i[:-1, 1]  # relative energy error minus previous step
             T_c[i*cases+j, :] = np.cumsum(tcomp_i) # add individual computation times
             action[i*cases+j, :] = np.ones(steps) * env_hermite.actions[j]
 
@@ -546,6 +574,14 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
     Reward = Reward.flatten()
     action = action.flatten()
     T_c = T_c.flatten()
+
+    index = np.where(Reward == 0)[0]
+    E_E = np.delete(E_E, index)
+    Delta_EE = np.delete(Delta_EE, index)
+    Reward = np.delete(Reward, index)
+    T_c = np.delete(T_c, index)
+    action = np.delete(action, index)
+
 
     #############################################
     # plot
@@ -572,8 +608,13 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
     ax.set_ylabel(r'Reward ($R$)',  fontsize = labelsize)
     ax2.set_ylabel(r'Reward ($R$)',  fontsize = labelsize)
     ax.set_title(Reward_name, fontsize = labelsize, y = 1.05)
+    
     ax.set_xscale('log')
-    ax2.set_yscale('symlog', linthresh = 1e-2)
+    ax2.set_xscale('symlog', linthresh = 1e-3)
+
+    # ax.set_yscale('symlog', linthresh = 1e0)
+    ax2.set_yscale('symlog', linthresh = 1e0)
+
     ax.tick_params(axis='x', labelsize=labelsize-3)
     ax.tick_params(axis='y', labelsize=labelsize-3)
     ax2.tick_params(axis='x', labelsize=labelsize-3)
@@ -808,6 +849,7 @@ def plot_int_comparison(I, steps, ENV):
 
 
     ENERGY = []
+    AX = []
     for z in range(len(I)):
         #############################################
         # Load run information for symple cases
@@ -844,10 +886,11 @@ def plot_int_comparison(I, steps, ENV):
         if z == 0:
             ax0 = fig.add_subplot(gs1[0, 0])
             name_planets = np.arange(np.shape(state)[1]).astype(str) 
-            plot_planets_distance(ax0, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+            distance = plot_planets_distance(ax0, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
             ax0.set_yscale('log')
             ax0.set_ylabel('Pair-wise \n distance (au)', fontsize = labelsize+1)
             ax0.tick_params(axis='both', which='major', labelsize=labelsize)
+            AX.append(ax0)
             
         ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
         ax1.set_title(I[z], fontsize = labelsize+3)
@@ -856,12 +899,14 @@ def plot_int_comparison(I, steps, ENV):
         ax1.set_ylabel('Action taken', fontsize = labelsize+1)
         ax1.set_yticks(np.arange(1, 6))
         ax1.tick_params(axis='both', which='major', labelsize=labelsize)
+        AX.append(ax1)
         # ax1.set_yscale('symlog')
 
         # Plot energy errors
         lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
 
-    ax2 = fig.add_subplot(gs1[-1, 0]) # cartesian symple
+
+    ax2 = fig.add_subplot(gs1[-1, 0]) 
     label = "Tstep parameter %.2E"%(env.actions[i])
     linestyle = lines[i%len(lines)]
     for z in range(len(ENV)):
@@ -873,6 +918,26 @@ def plot_int_comparison(I, steps, ENV):
     ax2.tick_params(axis='both', which='major', labelsize=labelsize)
     ax2.set_yscale('log')
     ax2.set_xlabel("Steps",fontsize = labelsize+1)
+    AX.append(ax2)
+
+
+        #  Draw vertical lines for close encounters
+    X_vert = []
+    for D in distance:
+        index_x = np.where(D < 1)[0]
+        X_vert.append(index_x)
+    def flatten(xss):
+        return [x for xs in xss for x in xs]
+    X_vert = flatten(X_vert)
+    for ax_vert in AX[0:-1]:
+        # ax_vert.set_xticklabels( () )
+        for X_D in X_vert:
+            ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
+                        clip_on = False, alpha = 0.2, linestyle = '--')
+    for ax_vert in [AX[-1]]:
+        for X_D in X_vert:
+            ax_vert.axvline(x=X_D, ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
+                         clip_on = False, alpha = 0.2, linestyle = '--')
     
     plt.savefig('./MixedIntegration_runs/'+ 'Comparison_steps.png', dpi = 100)
     plt.show()
@@ -937,10 +1002,10 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     alphavalue = 0.5
     alphavalue2 = 0.9
     # bins = 100
-    X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1], Tcomp_final[:, 2]]
-    Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1], E_final[:, 2]]
-    # X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1]]
-    # Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1]]
+    # X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1], Tcomp_final[:, 2]]
+    # Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1], E_final[:, 2]]
+    X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1]]
+    Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1]]
     labels = [r'$\mu = $%.1E'%env.actions[0], r'$\mu = $%.1E'%env.actions[-1],"RL", r'$\mu = $%.1E'%env.actions[2]]
     markers = ['o', 'x', 's', 'o']
 
@@ -949,18 +1014,19 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     ax2 = fig.add_subplot(gs1[0, 0])
     ax3 = fig.add_subplot(gs1[1, 1])
 
-    
-
     binsx = np.logspace(np.log10(5e-1),np.log10(0.8e1), 50)
     binsy = np.logspace(np.log10(1e-14),np.log10(1e1), 50)
 
+    order = [1,2,0]
+    alpha = [0.5, 0.5, 0.9]
     for i in range(len(X)):
         ax1.scatter(X[i], Y[i], color = colors[i], alpha = alphavalue, marker = markers[i],\
-                s = msize, label = labels[i])
-        ax2.hist(X[i], bins = binsx, color = colors[i], alpha = alphavalue2, edgecolor=colors[i], linewidth=1.2)
+                s = msize, label = labels[i], zorder =order[i])
+        ax2.hist(X[i], bins = binsx, color = colors[i],  alpha = alpha[i], edgecolor=colors[i], \
+                 linewidth=1.2, zorder =order[i])
         ax2.set_yscale('log')
-        ax3.hist(Y[i], bins = binsy, color = colors[i], alpha = alphavalue2, orientation='horizontal',\
-                 edgecolor=colors[i], linewidth=1.2)
+        ax3.hist(Y[i], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
+                 edgecolor=colors[i], linewidth=1.2, zorder =order[i])
     
     # xsize = len(Tcomp_final[:, 0])
     # Y = np.array([E_final[:, 0], E_final[:, -2], E_final[:, -1]])
@@ -985,12 +1051,12 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
     ax3.set_yscale('log')
-    ax1.set_xscale('log')
-    ax2.set_xscale('log')
+    # ax1.set_xscale('log')
+    # ax2.set_xscale('log')
     # ax1.set_xscale('symlog', linthresh= 1e-1)
-    ax1.set_xlim([5e-1, 0.8e1])
+    ax1.set_xlim([5e-1, 3])
+    ax2.set_xlim([5e-1, 3])
     ax1.set_ylim([1e-14, 1e1])
-    ax2.set_xlim([5e-1, 0.8e1])
     ax3.set_ylim([1e-14, 1e1])
     for ax in [ax1, ax2, ax3]:
         ax.tick_params(axis='both', which='major', labelsize=labelsize)
@@ -1058,7 +1124,7 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     fig = plt.figure(figsize = (6, 5))
     gs1 = matplotlib.gridspec.GridSpec(1, 1, figure = fig,\
                                        left=0.15, wspace=0.3, 
-                                       hspace = 0.2, right = 0.99,
+                                       hspace = 0.2, right = 0.97,
                                         top = 0.97, bottom = 0.11)
     
     msize = 50
@@ -1092,9 +1158,9 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
-    ax1.set_xscale('log')
+    # ax1.set_xscale('log')
     ax1.tick_params(axis='both', which='major', labelsize=labelsize)
-    ax1.set_xlim([6e-1, 0.8e1])
+    ax1.set_xlim([6e-1, 3])
     ax1.set_ylim([1e-13, 1e5])
     
     plt.savefig('./MixedIntegration_runs/Comparison_integr.png', dpi = 100)
@@ -1102,8 +1168,7 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     
 if __name__ == '__main__':
     experiment = 4
-
-    seed = 0
+    seed = 1
     
     if experiment == 0: 
         # plot trajectory with hermite for a fixed action, many initializations
@@ -1222,7 +1287,7 @@ if __name__ == '__main__':
 
 
         cases = len(env_hermite.actions)
-        steps = 200
+        steps = 300
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
         # seed = 0
@@ -1377,7 +1442,7 @@ if __name__ == '__main__':
             return Reward
         
         # CASES  = [800, 1000, 1500, 2000]
-        CASES  = [2600, 2700, 2900, 3000]
+        CASES  = [2300]
         for C in CASES:
             env_hermite = IntegrateEnv_Hermite()
             name_subfolder = "7_automatic_steps/"+str(C)+'/'
@@ -1387,7 +1452,7 @@ if __name__ == '__main__':
             steps = 300
             values = np.arange(cases)
             env_hermite.settings['Integration']['check_step'] = 1e-1
-            seed = 1
+            seed = 6
                 
             runs_trajectory_cases(cases, steps, C)
             save_path_fig = './HermiteIntegration_runs/'+ "7_automatic_steps/"+'Hermite_comparison_RLsteps_s'+str(seed) +'_'+str(C)+'.png'

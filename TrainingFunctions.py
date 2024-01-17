@@ -154,7 +154,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     x_all = np.arange(len(reward_flat))
     
     f, ax = plt.subplots(2, 1, figsize = (10,6))
-    plt.subplots_adjust(left=0.15, right=0.99, top=0.99, bottom=0.1, hspace = 0.2)
+    plt.subplots_adjust(left=0.14, right=0.97, top=0.96, bottom=0.15, hspace = 0.2)
     fontsize = 20
 
     def filter(x, y):
@@ -164,59 +164,34 @@ def plot_reward(a, reward, Eerror, HuberLoss):
             y2[xlen*i:xlen*(i+1)] *=  np.quantile(y[xlen*i:xlen*(i+1)], 0.5)
         return y2
 
-    pts = 101
-    ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 0.5)
+    pts = 41
+    ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(steps_perepisode), pts, 1)    
-    # y2 = filter(x_episodes, yy)
-    # ax[0].plot(x_episodes, y2, color = 'red')
     ax[0].plot(x_episodes, yy, color = 'black')
-    # ax[0].set_xlabel('Episode', fontsize = fontsize)
     ax[0].set_ylabel('Steps', fontsize = fontsize)
-    ax[0].set_yscale('log')
-    # ax[0].set_xscale('log')
     ax[0].tick_params(axis='x', labelsize=fontsize-3)
     ax[0].tick_params(axis='y', labelsize=fontsize-3)
+    # ax[0].set_yscale('symlog')
 
-    ax[1].plot(x_episodes, cumul_reward_perepisode, color = colors[0], alpha = 0.5)
+    ax[1].plot(x_episodes, cumul_reward_perepisode, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(cumul_reward_perepisode), pts, 1)
-    # y2 = filter(x_episodes, yy)
-    # ax[1].plot(x_episodes, y2, color = 'red')
     ax[1].plot(x_episodes, yy, color = 'black')
     ax[1].set_xlabel('Episode', fontsize = fontsize)
     ax[1].set_ylabel('Cumulative reward', fontsize = fontsize)
-    ax[1].set_yscale('symlog')
+    ax[1].set_yscale('symlog', linthresh = 1e1)
     ax[1].tick_params(axis='x', labelsize=fontsize-3)
     ax[1].tick_params(axis='y', labelsize=fontsize-3)
 
-    # ax[2].plot(x_episodes, last_energy_perepisode, color = colors[0], alpha = 0.5)
-    # yy = savgol_filter(np.ravel(last_energy_perepisode), pts, 1)
-    # # y2 = filter(x_episodes, yy)
-    # # ax[1].plot(x_episodes, y2, color = 'red')
-    # ax[2].plot(x_episodes, yy, color = 'black')
-    # ax[2].set_xlabel('Episode', fontsize = fontsize)
-    # ax[2].set_ylabel('$\Delta E_{{Final}}$ ', fontsize = fontsize)
-    # # ax[2].set_yscale('symlog', linthresh = 1e-6)
-    # ax[2].set_yscale('log')
-    # ax[2].tick_params(axis='x', labelsize=fontsize-3)
-    # ax[2].tick_params(axis='y', labelsize=fontsize-3)
-    # # ax[1].set_xscale('log')
+    line_x = [2100, 2100]
+    line_y1 = [8e1, 1e2]
+    line_y2 = [-1.5e3, 1e2]
+    ax[0].plot(line_x, line_y1, linestyle = '--', color = 'red', alpha = 1)
+    ax[1].plot(line_x, line_y2, linestyle = '--', color = 'red', alpha = 1)
 
-    # ax[2].plot(x_all, huberloss_flat, color = 'darkblue', alpha = 0.5)
-    # # yy = savgol_filter(energyerror_flat, 101, 2)
-    # # ax[1].plot(x_episodes, yy, color = 'darkblue')
-    # ax[2].set_xlabel('Steps', fontsize = fontsize)
-    # ax[2].set_ylabel('Huber Loss', fontsize = fontsize)
-    # ax[2].set_yscale('symlog')
-
-    # ax[3].plot(x_all, reward_flat, color = 'darkblue', alpha = 0.5)
-    # yy = savgol_filter(np.ravel(reward_flat), 101, 2)
-    # ax[2].plot(x_all, yy, color = 'darkblue')
-
-    # index = np.where(np.array(episode_end_list) == 1)[0]
-    # ax[2].scatter(x_all[index], yy[index], c = 'r', marker= '.')
-    # ax[3].set_xlabel('Steps', fontsize = fontsize)
-    # ax[3].set_ylabel('Reward', fontsize = fontsize)
-    # ax[3].set_yscale('symlog')
+    ax[0].set_xlim([-1, 3000])
+    ax[1].set_xlim([-1, 3000])
+    ax[0].set_ylim([line_y1[0], line_y1[1]])
+    ax[1].set_ylim([line_y2[0], line_y2[1]])
 
     plt.savefig(a.settings['Training']['savemodel']+'_cumulative_reward.png', dpi = 100)
     plt.show()

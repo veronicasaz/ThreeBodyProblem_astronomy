@@ -141,18 +141,21 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps
         ax.plot(x_axis, Dist[i], label = Labels[i], linewidth = 2.5)
     ax.legend(fontsize =labelsize, framealpha = 0.5)
     ax.set_yscale('log')
+    return Dist
 
 
 def plot_actions_taken(ax, x_axis, y_axis, label = None):
     colors = colors2[0]
-    ax.plot(x_axis, y_axis, color = colors, marker = '.', linestyle = ':', alpha = 0.5)
+    ax.plot(x_axis, y_axis, color = colors, linestyle = '-', alpha = 0.5,
+            marker = '.', markersize = 8)
     ax.grid(axis='y')
 
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 
                    colorindex = None, linestyle = None, linewidth = 1):
     if colorindex != None:
         color = colors[(colorindex+3)%len(colors)] # start in the blues
-    ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label, linewidth = linewidth)
+    ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label, 
+            linewidth = linewidth)
 
 
 # if __name__ == '__main__':
