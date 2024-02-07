@@ -1,3 +1,15 @@
+"""
+TestGym: Training of the reinforcement learning algorithm
+
+Author: Veronica Saz Ulibarrena
+Last modified: 6-February-2024
+
+Based on:
+https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/https://www.gymlibrary.dev/content/environment_creation/
+https://www.gymlibrary.dev/content/environment_creation/
+https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
+https://towardsdatascience.com/reinforcement-learning-explained-visually-part-5-deep-q-networks-step-by-step-5a5317197f4b
+"""
 from IPython.display import clear_output
 
 import gym
@@ -16,18 +28,10 @@ from TrainingFunctions import DQN, \
                             select_action, \
                             optimize_model,\
                             plot_durations
-# """
-# https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/https://www.gymlibrary.dev/content/environment_creation/
-# https://www.gymlibrary.dev/content/environment_creation/
-# https://pytorch.org/tutorials/intermediate/reinforcement_q_learning.html
-# https://towardsdatascience.com/reinforcement-learning-explained-visually-part-5-deep-q-networks-step-by-step-5a5317197f4b
-# """
+
 
 # Environment
-# env = gym.make('cluster_2D:Cluster2D-v0') # example of how to create the env once it's been registered
-# env = gym.make('cluster_2D:SympleInt-v0') # example of how to create the env once it's been registered
-env = gym.make('cluster_2D:HermiteInt-v0') # example of how to create the env once it's been registered
-# env.reset() # Resets the environment and returns a random initial state
+env = gym.make('cluster_2D:HermiteInt-v0') # create the env once it's been registered
 
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -40,10 +44,7 @@ if is_ipython:
 # settings = load_json("./settings_symple.json")
 settings = load_json("./settings_hermite.json")
 
-# Transition = namedtuple('Transition',
-#                         ('state', 'action', 'next_state', 'reward'))
-
-# TRAINING
+# TRAINING settings
 BATCH_SIZE = settings['Training']['batch_size'] # number of transitions sampled from the replay buffer
 GAMMA = settings['Training']['gamma'] # discount factor
 EPS_START = settings['Training']['eps_start'] # starting value of epsilon
@@ -54,14 +55,13 @@ LR = settings['Training']['lr'] # learning rate of the ``AdamW`` optimizer
 
 # Get number of actions from gym action space
 n_actions = env.action_space.n
-# env.settings['Integration']['seed'] = None # random seed
 
 # Get the number of state observations
 env.save_state_to_file = False
-
 state, info = env.reset()
 n_observations = len(state)
 
+# Create nets
 policy_net = DQN(n_observations, n_actions, settings = settings).to(device)
 target_net = DQN(n_observations, n_actions, settings = settings).to(device)
 target_net.load_state_dict(policy_net.state_dict())
@@ -72,14 +72,15 @@ Transition = namedtuple('Transition',
 optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
 memory = ReplayMemory(10000, Transition = Transition)
 
-steps_done = 0
-episode_rewards = []
+steps_done = 0 # counter of the number of steps
 
 if torch.cuda.is_available():
     num_episodes = 600
 else:
     num_episodes = 50
 
+# lists to save training progress
+episode_rewards = [] # list of rewards per episode
 save_reward = list()
 save_EnergyE = list()
 save_huberloss = list()
@@ -88,6 +89,7 @@ save_huberloss = list()
 env.subfolder = "2_Training/"
 for i_episode in range(settings['Training']['max_iter']):
     print("Training episode: %i"%i_episode)
+
     # Initialize the environment and get it's state
     state, info = env.reset(save_state = False)
 
@@ -101,9 +103,9 @@ for i_episode in range(settings['Training']['max_iter']):
     observation, reward_p, terminated, info = env.step(action.item())
 
     for t in range(settings['Integration']['max_steps']-1):
+        # Take a step
         action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
         observation, reward_p, terminated, info = env.step(action.item())
-        # reward += reward_p # TODO: is this correct? otherwise rewards are not related
         save_reward_list.append(reward_p)
         save_EnergyE_list.append(info['Energy_error'])
 
@@ -140,7 +142,6 @@ for i_episode in range(settings['Training']['max_iter']):
 
         episode_rewards.append(reward_p)
         if done:
-            # plot_durations(episode_rewards, i_episode)
             break
     env.close()
     save_reward.append(save_reward_list)

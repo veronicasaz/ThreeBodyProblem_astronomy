@@ -1,3 +1,9 @@
+"""
+TrainingFunctions: additional functions for the reinforcement learning training
+
+Author: Veronica Saz Ulibarrena
+Last modified: 6-February-2024
+"""
 import numpy as np
 import torch
 import torch.nn as nn
@@ -11,7 +17,6 @@ import matplotlib.pyplot as plt
 import math
 
 from scipy.signal import butter, lfilter, freqz
-# from PlotsSimulation import load_state_files
 
 from collections import namedtuple, deque
 
@@ -19,25 +24,47 @@ colors = ['steelblue', 'darkgoldenrod', 'mediumseagreen', 'coral',  \
         'mediumslateblue', 'deepskyblue', 'navy']
 
 class ReplayMemory(object):
-
     def __init__(self, capacity, Transition = None):
+        """
+        ReplayMemory: create sample database from memory
+        INPUTS:
+            capacity: maximum length 
+            Transition: 
+        """
         self.memory = deque([], maxlen=capacity)
         
         self.Transition = Transition
 
     def push(self, *args):
-        """Save a transition"""
+        """
+        push: save a transition
+        """
         self.memory.append(self.Transition(*args))
 
     def sample(self, batch_size):
+        """
+        sample: take a random sample from the memory
+        INPUTS:
+            batch_size: size of the batch to be taken
+        """
         return random.sample(self.memory, batch_size)
 
     def __len__(self):
+        """
+        __len__: length of the memory array
+        """
         return len(self.memory)
     
 
 class DQN(nn.Module):
     def __init__(self, n_observations, n_actions, settings = None):
+        """
+        DQN: creation of the networks
+        INPUTS:
+            n_observations: number of observations to use as input
+            n_actions: number of actions to use as output size
+            settings: dictionary with specific network settings
+        """
         self.settings = settings
         super(DQN, self).__init__()
         self.layer1 = nn.Linear(n_observations, self.settings['Training']['neurons'])
@@ -47,6 +74,13 @@ class DQN(nn.Module):
     # Called with either one element to determine next action, or a batch
     # during optimization. Returns tensor([[left0exp,right0exp]...]).
     def forward(self, x):
+        """
+        forward: add layers to the network
+        INPUTS:
+            x: input
+        OUTPUTS:
+            output
+        """
         x = F.relu(self.layer1(x))
         for i in range(self.settings['Training']['hidden_layers']):
             x = F.relu(self.layer2(x))
@@ -54,6 +88,18 @@ class DQN(nn.Module):
     
 
 def select_action(state, policy_net, Eps, env, device, steps_done):
+    """
+    select_action: choose best action 
+    INPUTS:
+        state: state of the system. Input of the network
+        policy_net: network with current weight values
+        Eps: eps parameter
+        env: environment
+        device: devie
+        steps_done: number of steps already done
+    OUTPUTS: 
+        action
+    """
     EPS_START, EPS_END, EPS_DECAY = Eps
     # global steps_done
     sample = random.random()
@@ -72,6 +118,11 @@ def select_action(state, policy_net, Eps, env, device, steps_done):
 
 def plot_durations(episode_rewards, episode, show_result=False):
     """
+    plot_durations: plot training progress
+    INPUTS:
+        episode_rewards: reward for each episode
+        episode: episode number
+        show_result: if True, shows plot
     https://www.linkedin.com/advice/0/how-do-you-evaluate-performance-robustness-your-reinforcement:
     cumulative reward, the average reward per episode, the number of steps per episode, or the success rate over time.
     """
@@ -87,12 +138,20 @@ def plot_durations(episode_rewards, episode, show_result=False):
     x = np.arange(len(rewards_t.numpy()))
     plt.scatter(x, rewards_t.numpy())
     plt.yscale('symlog', linthresh = 1e-4)
-    # plt.xscale('log')
     if episode %50 == 0:
         plt.savefig('./SympleIntegration_training/reward_progress_%i'%episode)
 
 
 def load_reward(a):
+    """
+    load_reward: load rewards from file 
+    INPUTS:
+        a: environment
+    OUTPUTS:
+        score: rewards
+        EnergyE: energy error
+        HuberLoss: huber loss
+    """
     score = []
     with open(a.settings['Training']['savemodel'] + "rewards.txt", "r") as f:
         # for line in f:
@@ -112,19 +171,19 @@ def load_reward(a):
             EnergyE.append(Energy_r)
 
     HuberLoss = []
-    # with open(a.settings['Training']['savemodel'] + "HuberLoss.txt", "r") as f:
-    #     # for line in f:
-    #     for y in f.read().split('\n'):
-    #         HuberLoss_r = list()
-    #         for j in y.split():
-    #             HuberLoss_r.append(float(j))
-    #         HuberLoss.append(HuberLoss_r)
 
     return score, EnergyE, HuberLoss
 
 def plot_reward(a, reward, Eerror, HuberLoss):
+    """
+    plot_reward: plot training parameters such as reward
+    INPUTS:
+        a: environment
+        reward: rewards
+        Eerror: energy error
+        HuberLoss: huber loss
+    """
     episodes = len(reward)
-    # episodes = 3000
     x_episodes = np.arange(episodes)
 
     steps_perepisode = np.zeros(episodes)
@@ -143,7 +202,6 @@ def plot_reward(a, reward, Eerror, HuberLoss):
             last_energy_perepisode[i] = abs(Eerror[i][-1])
         except:
             last_energy_perepisode[i] = 0
-        # huberloss_flat = huberloss_flat + HuberLoss[i][1:]
         try:
             energyerror_flat = energyerror_flat + Eerror[i][1:]
         except:
@@ -171,7 +229,6 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     ax[0].set_ylabel('Steps', fontsize = fontsize)
     ax[0].tick_params(axis='x', labelsize=fontsize-3)
     ax[0].tick_params(axis='y', labelsize=fontsize-3)
-    # ax[0].set_yscale('symlog')
 
     ax[1].plot(x_episodes, cumul_reward_perepisode, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(cumul_reward_perepisode), pts, 1)
@@ -199,6 +256,20 @@ def plot_reward(a, reward, Eerror, HuberLoss):
 def optimize_model(policy_net, target_net, memory, \
                    Transition, device, GAMMA, BATCH_SIZE,\
                    optimizer):
+    """
+    optimize_model: optimize trained model
+    INPUTS: 
+        policy_net: policty network
+        target_net: target network
+        memory: memory with all the training samples
+        Transition:
+        device:
+        GAMMA: gamma parameter
+        BATCH_SIZE: batch size
+        optimizer: optimization algorithm
+    OUTPUTS:
+        loss: loss
+    """
     if len(memory) < BATCH_SIZE:
         return
     transitions = memory.sample(BATCH_SIZE)
