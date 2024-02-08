@@ -1,15 +1,18 @@
+"""
+PlotsSimulation: plotting functions
+
+Author: Veronica Saz Ulibarrena
+Last modified: 6-February-2024
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-
 import torch
 
 from TrainingFunctions import DQN, load_reward, plot_reward
-# from Cluster.cluster_2D.envs.SympleIntegration_env import IntegrateEnv
 from Cluster.cluster_2D.envs.HermiteIntegration_env import IntegrateEnv_Hermite
 
-
-# colors = ['orange', 'green', 'blue', 'red', 'grey', 'black']
 colors = ['steelblue', 'darkgoldenrod', 'mediumseagreen', 'coral',  \
         'mediumslateblue', 'deepskyblue', 'navy']
 colors2 = ['navy']
@@ -20,10 +23,23 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
                    name_suffix = None, steps = None,
                    reward_f = None, model_path = None, steps_suffix= ''):
     """
-    Run one initialization with RL or with an integrator
+    run_trajectory: Run one initialization with RL or with an integrator
+    INPUTS:
+        seed: seed to be used for initial conditions. 
+        action: fixed action or 'RL' 
+        env: environment to simulate
+        name_suffix: suffix to be added for the file saving
+        steps: number of steps to simulate
+        reward_f: type of reward to use for the simulation and weights for the 3 terms
+        model_path: path to the trained RL algorithm
+        steps_suffix: suffix for the file with the steps taken
+
+    OUTPUTS:
+        reward: reward for each step
     """
     if env == None:
         env = IntegrateEnv_Hermite()
+
     env.suffix = name_suffix
     if steps == None:
         steps = env.settings['Integration']['max_steps']
@@ -40,6 +56,8 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
 
     reward = np.zeros(steps)
     i = 0
+
+    # Case 1: use trained RL algorithm
     if action == 'RL':
          # Load trained policy network
         n_actions = env.action_space.n
@@ -51,12 +69,7 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
         steps_taken = list()
         steps_taken.append(0) # initial conditions
 
-        # Do first step manually
-        # state, y, terminated, info = env.step(0)
-        # steps_taken.append(0)
-        # reward[0] = env.reward
-        # i += 1
-        
+        # Take steps
         while i < steps-1:
             state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             action = model(state).max(1)[1].view(1, 1)
@@ -66,6 +79,8 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
             i += 1
         env.close()
         np.save(env.settings['Integration']['savefile'] + 'RL_steps_taken'+steps_suffix, np.array(steps_taken))
+    
+    # Case 2: random actions 
     elif action == 'random':
         while i < steps-1:
             action = np.random.randint(0, len(env.actions))
@@ -77,6 +92,7 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
                 reward[i] = env.reward
             i += 1
         env.close()
+    # Case 3: fixed action throughout the simulation
     else:
         while i < steps-1:
             if type(action) == int:
@@ -90,7 +106,17 @@ def run_trajectory(seed = 123, action = 'RL', env = None,
     return reward
 
 def load_state_files(env, steps, namefile = None):
-    # Load run information for symple cases
+    """
+    load_state_files: Load run information 
+    INPUTS: 
+        env: environment of the saved files
+        steps: steps taken
+        namefile: suffix for the loading 
+    OUTPUTS:
+        state: state of the bodies in the system
+        cons: action, energy error, angular momentum error
+        tcomp: computation time
+    """
     env.suffix = (namefile)
     state = env.loadstate()[0][0:steps, :, :]
     cons = env.loadstate()[1][0:steps, :]
@@ -99,6 +125,16 @@ def load_state_files(env, steps, namefile = None):
     return state, cons, tcomp
 
 def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30, legend_on = True):
+    """
+    plot_planets_trajectory: plot trajectory of three bodies
+    INPUTS:
+        ax: matplotlib ax to be plotted in 
+        state: array with the state of each of the particles at every step
+        name_planets: array with the names of the bodies
+        labelsize: size of matplotlib labels
+        steps: steps to be plotted
+        legend_on: True or False to display the legend
+    """
     n_planets = np.shape(state)[1]
     for j in range(n_planets):
         x = state[0:steps, j, 2]
@@ -116,8 +152,7 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30,
                     alpha = 0.1)
         
         ax.scatter(x[1:], y[1:], s = size_marker, \
-                    c = colors[j%len(colors)])
-                    # marker = markers[j//len(colors)],)
+                    c = colors[j%len(colors)])        
         
     if legend_on == True:
         ax.legend(fontsize = labelsize)
@@ -125,6 +160,16 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30,
     ax.set_ylabel('y (au)', fontsize = labelsize)
     
 def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps = 30):
+    """
+    plot_planets_distance: plot steps vs pairwise-distance of the bodies
+    INPUTS:
+        ax: matplotlib ax to be plotted in 
+        x_axis: time or steps to be plotted in the x axis
+        state: array with the state of each of the particles at every step
+        name_planets: array with the names of the bodies
+        labelsize: size of matplotlib labels
+        steps: steps to be plotted
+    """
     n_planets = np.shape(state)[1]
     Dist = []
     Labels = []
@@ -144,7 +189,14 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12, steps
     return Dist
 
 
-def plot_actions_taken(ax, x_axis, y_axis, label = None):
+def plot_actions_taken(ax, x_axis, y_axis):
+    """
+    plot_actions_taken: plot steps vs actions taken by the RL algorithm
+    INPUTS:
+        ax: matplotlib ax to be plotted in 
+        x_axis: time or steps to be plotted in the x axis
+        y_axis: data for the y axis
+    """
     colors = colors2[0]
     ax.plot(x_axis, y_axis, color = colors, linestyle = '-', alpha = 0.5,
             marker = '.', markersize = 8)
@@ -152,15 +204,19 @@ def plot_actions_taken(ax, x_axis, y_axis, label = None):
 
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 
                    colorindex = None, linestyle = None, linewidth = 1):
+    """
+    plot_evolution: plot steps vs another measurement
+    INPUTS:
+        ax: matplotlib ax to be plotted in 
+        x_axis: time or steps to be plotted in the x axis
+        y_axis: data for the y axis
+        label: label for the legend of each data line
+        color: color selection for each line
+        colorindex: index of the general color selection
+        linestyle: type of line
+        linewidth: matplotlib parameter for the width of the line
+    """
     if colorindex != None:
         color = colors[(colorindex+3)%len(colors)] # start in the blues
     ax.plot(x_axis, y_axis, color = color, linestyle = linestyle, label = label, 
             linewidth = linewidth)
-
-
-# if __name__ == '__main__':
-#     cases = 9
-#     action = 5
-#     steps = 1000
-#     runs_trajectory(cases, action, steps)
-#     plot_runs_trajectory(cases, action, steps)

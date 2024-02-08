@@ -1,3 +1,9 @@
+"""
+TestTrainedModelGym_hermite: tests and plots for the RL algorithm
+
+Author: Veronica Saz Ulibarrena
+Last modified: 8-February-2024
+"""
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
@@ -15,8 +21,6 @@ from TrainingFunctions import DQN, load_reward, plot_reward
 from PlotsSimulation import load_state_files, plot_planets_trajectory, \
                             run_trajectory, plot_evolution,\
                             plot_actions_taken, plot_planets_distance
-                            # plot_int_comparison
-
 
 
 colors = ['steelblue', 'darkgoldenrod', 'mediumseagreen', 'coral',  \
@@ -28,11 +32,20 @@ def evaluate_many_hermite_cases(values, \
                         plot_grid = True,
                         plot_errorvstime = True,
                         subfolder = None):
+    """
+    evaluate_many_hermite_cases: plot many things from trained data
+    INPUTS:
+        values: action vector for each of the cases stored in a list
+        plot_tstep: plot step vs energy error, angular momentum and computation time
+        plot_grid: plot energy error vs angular momentum
+        plot_errorvstime: plot computation time vs energy error and vs angular momentum
+        subfolder: save in a subfolder if needed
+    """
     cases = len(values)
     a = IntegrateEnv_Hermite()
     a.subfolder = subfolder
 
-    # Load run information for symple cases
+    # Load run information for many cases
     state = list()
     cons = list()
     tcomp = list()
@@ -54,30 +67,20 @@ def evaluate_many_hermite_cases(values, \
 
     bodies = len(state[0][0,:,0])
     steps = len(cons[0][:,0])
-    # # Calculate errors in cartesian
-    # baseline = state[4] # Take highest order as a baseline
-    # E_x = np.zeros((steps, bodies))
-    # for i in range(cases):
-    #     E_x[:, i] = state[i]
 
     # Calculate the energy errors
-    # baseline = cons[4] # Take highest order as a baseline
     E_E = np.zeros((steps, cases))
     E_M = np.zeros((steps, cases))
     T_c = np.zeros((steps, cases))
     for i in range(cases):
-        # E_E[:, i] = abs((cons[i][:, 1] - cons[i][0, 1])/ cons[i][0, 1]) # absolute relative energy error
-        # E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:])/ cons[i][0, 2:], axis = 1) # relative angular momentum error
         E_E[:, i] = abs(cons[i][:, 1]) # absolute relative energy error
         E_M[:, i] = np.linalg.norm((cons[i][:, 2:] - cons[i][0, 2:]), axis = 1) # relative angular momentum error
         T_c[:, i] = np.cumsum(tcomp[i]) # add individual computation times
-
 
     # plot
     colors = ['red', 'green', 'blue', 'orange', 'grey', 'black']
     lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
     markers = ['o', 'x', '.', '^', 's']
-    # labels = ['Order 1', 'Order 2', 'Order 3', 'Order 5', 'Order 10', 'Mixed order']
     n_order_cases = len(a.settings['Integration']['order'])
     n_tstep_cases = len(a.settings['Integration']['t_step'])
 
@@ -85,7 +88,7 @@ def evaluate_many_hermite_cases(values, \
         fig, ax = plt.subplots(3, 1, layout = 'constrained', figsize = (10, 10))
         x_axis = np.arange(0, steps, 1)
 
-        # plot symple
+        # plot 
         for i in range(cases-2): # plot all combinations with constant dt and order
             ax[0].plot(x_axis, E_E[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
             ax[1].plot(x_axis, E_M[:, i], color = colors[i//n_tstep_cases], linestyle = lines[i%n_tstep_cases], label = 'O%i, t_step = %1.1E'%(a.actions[values[i][0]][0], a.actions[values[i][0]][1]))
@@ -101,8 +104,6 @@ def evaluate_many_hermite_cases(values, \
         ax[1].plot(x_axis, E_M[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
         ax[2].plot(x_axis, T_c[:, -1], color = "lightgreen", linestyle = '-', label = 'RL')
 
-
-
         labelsize = 20
         ax[0].legend(loc='upper right')
         ax[0].set_ylabel('Energy error',  fontsize = labelsize)
@@ -117,7 +118,6 @@ def evaluate_many_hermite_cases(values, \
     if plot_grid == True: # TODO: does not include RL
         fig, ax = plt.subplots(2, 1, layout = 'constrained', figsize = (10, 10))
 
-        # for i in range(cases): #Excluding the case with the mixed actions
         sc = ax[0].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
                            s = 500, c = E_E[-1,:-1], cmap = 'RdYlBu', \
                             norm=matplotlib.colors.LogNorm())
@@ -156,15 +156,10 @@ def evaluate_many_hermite_cases(values, \
         ax[0].scatter(E_E[-1, -1], T_c[-1, -1], marker = markers[(i+2)//n_tstep_cases], color = colors[(i+2)%n_tstep_cases], s = 100, label = 'RL')
         ax[1].scatter(E_M[-1, -1], T_c[-1, -1], marker = markers[(i+2)//n_tstep_cases], color = colors[(i+2)%n_tstep_cases], s = 100, label = 'RL')
 
-        # sm = ax[1].scatter(np.array(a.actions)[:,0], np.array(a.actions)[:,1], marker = 'o',\
-        #                 s = 500, c = E_M[-1,:-1], cmap = 'RdYlBu', \
-        #                     norm=matplotlib.colors.LogNorm())
         labelsize = 20
         ax[0].legend(loc='upper right')
         ax[0].set_xlabel('Final Energy Error',  fontsize = labelsize)
-        # ax[0].set_title("Final Energy error", fontsize = labelsize)
         ax[1].set_xlabel('Final Angular momentum Error', fontsize = labelsize)
-        # ax[1].set_title("Final Angular momentum error", fontsize = labelsize)
         for pl in range(len(ax)):
             ax[pl].set_yscale('log')
             ax[pl].set_xscale('log')
@@ -175,6 +170,11 @@ def evaluate_many_hermite_cases(values, \
         plt.show()
 
 def test_1_case(value):
+    """
+    test_1_case: run 1 case to test environment
+    INPUTS:
+        value: list of actions
+    """
     a = IntegrateEnv_Hermite()
     terminated = False
     i = 0
@@ -189,6 +189,24 @@ def test_1_case(value):
 
     
 def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False, save_path = None):
+    """
+    plot_steps: multiple subplots
+    INPUTS:
+        values: list of actions for each case
+        env: environment that has been run
+        steps: number of steps taken
+        RL: include reinforcement learning plots
+        reward_plot: include plot with the reward value
+        save_path: path to save the figure
+
+    PLOTS:
+        plot 1: cartesian coordinates (orbit) of restrictive option
+        plot 2:cartesian coordinates (orbit) of RL algorithm
+        plot 3: steps vs pairwise distance between bodies
+        plot 4: actions taken by the RL algorithm
+        plot 5: steps vs reward function
+        plot 6: steps vs energy error
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -255,7 +273,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     ax2 = fig.add_subplot(gs1[0:3, 1]) # cartesian another step
     ax3 = fig.add_subplot(gs1[3:5, :]) # pairwise distance
     ax4 = fig.add_subplot(gs1[9:, :]) # energy error 
-    # ax5 = fig.add_subplot(gs1[-2:, :]) # computation time
 
     if RL == True:
         ax7 = fig.add_subplot(gs1[5:7, :]) # actions
@@ -283,7 +300,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
 
     for i in range(cases): # plot all combinations with constant dt and order
-        # label = 'O%i, t_step = %1.1E'%(env.actions[values[i][0]][0], env.actions[values[i][0]][1])
         if RL == True and i == cases-1:
             label = 'RL'
             linestyle = '-'
@@ -303,16 +319,10 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
         ax7.set_ylim([-1, cases])
         ax7.set_ylabel('Action taken', fontsize = labelsize)
         ax7.set_yticks(np.arange(0, cases-1))
-        
-    
 
     # Draw vertical lines for close encounters
     X_vert = []
     for D in distance:
-        # x = 5
-        # for j in range(int(len(distance)//x)):
-            # index_x = np.where(D = min(D[j*x:j*x+x]))[0]
-            # print(index_x)
         index_x = np.where(D < 1)[0]
         X_vert.append(index_x)
     def flatten(xss):
@@ -322,7 +332,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     prev = 0
     for X_D in X_vert:
         print(prev, X_D)
-        # if X_D - prev >2:
         for ax_vert in [ax3, ax6, ax7]:
             ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
                     clip_on = False, alpha = 0.2, linestyle = '--')
@@ -335,7 +344,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$ (au)', fontsize = labelsize)
     ax4.set_ylabel('Energy error',  fontsize = labelsize)
     ax4.set_xlabel('Step', fontsize = labelsize)
-    # ax5.set_ylabel('Comp. time (s)', fontsize = labelsize)
 
     ax1.set_title(r"$\mu$ = %.2E"%(env_hermite.actions[0]), fontsize = labelsize+2)
     ax4.set_yscale('log')
@@ -347,8 +355,6 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     handles, labels = ax4.get_legend_handles_labels()
     ax4.scatter(0,0 , color = 'white', label = ' ')
     ax4.scatter(0,0 , color = 'white', label = ' ')
-    # handles.append([handles[0], handles[0]])
-    # labels.append(['a ', ' q'])
     print(handles, labels)
     ax4.legend(loc='upper center', bbox_to_anchor=(0.45, -0.38), \
                        fancybox = True, ncol = 3, fontsize = labelsize-2)
@@ -364,6 +370,15 @@ def plot_steps(values, env = None, steps = None, RL = False, reward_plot = False
     
 
 def plot_rewards(values, initializations, reward_functions, env = None, steps = None):
+    """
+    plot_rewards: plot reward values for different functions
+    INPUTS: 
+        values: list of actions for the different cases
+        initializations: number of initializations used to create the data
+        reward_funcitons: list of rewards chosen and the weights
+        env: environment used
+        steps: steps taken
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -425,15 +440,12 @@ def plot_rewards(values, initializations, reward_functions, env = None, steps = 
         y = Reward
         z = action
         sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-        # ax.tricontour(x, y, z)
 
         ax.set_xlabel('Energy error',  fontsize = labelsize)
         ax.set_ylabel('Reward',  fontsize = labelsize)
         ax.set_xscale('log')
         if reward_case == 5 or reward_case == 6:
             ax.set_yscale('symlog')
-        # ax.set_yscale('symlog', linthresh = 5)
-        # ax.tick_params(axis='both', which='major', labelsize=labelsize)
     
     fig.colorbar(sc, axbar)
 
@@ -441,6 +453,15 @@ def plot_rewards(values, initializations, reward_functions, env = None, steps = 
     plt.show()
     
 def plot_rewards2(values, initializations, reward_functions, env = None, steps = None):
+    """
+    plot_rewards2: same as plot_rewards but different distribution of subplots
+    INPUTS: 
+        values: list of actions for the different cases
+        initializations: number of initializations used to create the data
+        reward_funcitons: list of rewards chosen and the weights
+        env: environment used
+        steps: steps taken
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -506,18 +527,12 @@ def plot_rewards2(values, initializations, reward_functions, env = None, steps =
         z = action
         sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
         ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-        # ax.tricontour(x, y, z)
 
         ax.set_xlabel(r'$\Delta E_i$',  fontsize = labelsize-1)
         
         ax2.set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize-1)
         ax.set_ylabel(r'Reward ($R$)',  fontsize = labelsize-1)
         ax.set_xscale('log')
-        # ax2.set_xscale('log')
-        # if reward_case == 5 or reward_case == 6:
-        #     ax.set_yscale('symlog')
-        # ax.set_yscale('symlog', linthresh = 5)
-        # ax.tick_params(axis='both', which='major', labelsize=labelsize)
     
     cbar = fig.colorbar(sc, axbar)
     cbar.set_label(r'Time step parameter ($\mu$)', fontsize = labelsize)
@@ -527,6 +542,16 @@ def plot_rewards2(values, initializations, reward_functions, env = None, steps =
     plt.show()
 
 def plot_one_reward(values, initializations, reward_function, reward_case, env = None, steps = None):
+    """
+    plot_one_reward: plot reward values for different runs 
+    INPUTS: 
+        values: list of actions for the different cases
+        initializations: number of initializations used to create the data
+        reward_functions: list of rewards chosen and the weights
+        reward_case: reward function and weights chosen
+        env: environment used
+        steps: steps taken
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -563,7 +588,6 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
             
             E_E[i*cases+j, :] = abs(cons_i[:, 1]) # absolute relative energy error
             Delta_EE[i*cases+j, :-1] = -(np.log10(abs(cons_i[1:, 1])) - np.log10(abs(cons_i[:-1, 1])))  # relative energy error minus previous step
-            # Delta_EE[i*cases+j, :-1] = cons_i[1:, 1] - cons_i[:-1, 1]  # relative energy error minus previous step
             T_c[i*cases+j, :] = np.cumsum(tcomp_i) # add individual computation times
             action[i*cases+j, :] = np.ones(steps) * env_hermite.actions[j]
 
@@ -582,7 +606,6 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
     T_c = np.delete(T_c, index)
     action = np.delete(action, index)
 
-
     #############################################
     # plot
     Reward_name = 'Type %i, W1 = %.2f, W2 = %.2f, W3 = %.2f'%(reward_functions[reward_case][0],\
@@ -591,7 +614,6 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
                                                                 reward_functions[reward_case][3])
     ax = fig.add_subplot(gs1[0, 0]) 
     ax2 = fig.add_subplot(gs1[1, 0]) 
-    # ax.set_title(Reward_name, fontsize = labelsize)
 
     x = E_E
     x2 = Delta_EE
@@ -599,10 +621,6 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
     z = action
     sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
     ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-    # ax.tricontour(x, y, z)
-
-    # ax.set_xlabel(r'Energy error ($\Delta E_i$)',  fontsize = labelsize)
-    # ax2.set_xlabel(r'Energy error step difference ($\log(\vert Delta E_i\vert )- log(\vert \Delta E_{i-1}\vert )$)',  fontsize = labelsize)
     ax.set_xlabel(r'$\Delta E_i$',  fontsize = labelsize)
     ax2.set_xlabel(r'$-(\log(\vert \Delta E_i\vert )- log(\vert \Delta E_{i-1}\vert ))$',  fontsize = labelsize)
     ax.set_ylabel(r'Reward ($R$)',  fontsize = labelsize)
@@ -611,22 +629,12 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
     
     ax.set_xscale('log')
     ax2.set_xscale('symlog', linthresh = 1e-3)
-
-    # ax.set_yscale('symlog', linthresh = 1e0)
     ax2.set_yscale('symlog', linthresh = 1e0)
 
     ax.tick_params(axis='x', labelsize=labelsize-3)
     ax.tick_params(axis='y', labelsize=labelsize-3)
     ax2.tick_params(axis='x', labelsize=labelsize-3)
     ax2.tick_params(axis='y', labelsize=labelsize-3)
-    # ax.set_ylim([-5.0, 10.0])
-    # ax2.set_xlim([-1.0, 1.0])
-    # ax2.set_ylim([-10.0, 10.0])
-    # ax2.set_xscale('log')
-    # if reward_case == 5 or reward_case == 6:
-    #     ax.set_yscale('symlog')
-    # ax.set_yscale('symlog', linthresh = 5)
-    # ax.tick_params(axis='both', which='major', labelsize=labelsize)
     
     cbar = fig.colorbar(sc, axbar)
     cbar.set_label(r'Time step parameter ($\mu$)', fontsize = labelsize)
@@ -637,6 +645,15 @@ def plot_one_reward(values, initializations, reward_function, reward_case, env =
 
 
 def plot_rewards_random_action(values, initializations, reward_functions, env = None, steps = None):
+    """
+    plot_rewards_random_action: plot rewards for a simulation in which random actions have been taken for each step
+    INPUTS: 
+        values: list of actions for the different cases
+        initializations: number of initializations used to create the data
+        reward_functions: list of rewards chosen and the weights
+        env: environment used
+        steps: steps taken
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -700,17 +717,12 @@ def plot_rewards_random_action(values, initializations, reward_functions, env = 
         z = action
         sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
         ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-        # ax.tricontour(x, y, z)
 
         ax.set_xlabel('Energy error',  fontsize = labelsize)
         ax2.set_xlabel('Energy error step difference',  fontsize = labelsize)
         ax.set_ylabel('Reward',  fontsize = labelsize)
         ax.set_xscale('log')
         ax2.set_xscale('log')
-        # if reward_case == 5 or reward_case == 6:
-        #     ax.set_yscale('symlog')
-        # ax.set_yscale('symlog', linthresh = 5)
-        # ax.tick_params(axis='both', which='major', labelsize=labelsize)
     
     fig.colorbar(sc, axbar)
 
@@ -718,6 +730,15 @@ def plot_rewards_random_action(values, initializations, reward_functions, env = 
     plt.show()
 
 def plot_runs_trajectory(cases, action, steps, seeds, env = None):
+    """
+    plot_runs_trajectory: plot orbit with different initialization seeds
+    INPUTS:
+        cases: number of cases studied
+        action: action taken for the given case
+        steps: steps taken
+        seeds: array with the seed for each initialization
+        env: environment used
+    """
     if env == None:
         env = IntegrateEnv_Hermite()
 
@@ -737,7 +758,6 @@ def plot_runs_trajectory(cases, action, steps, seeds, env = None):
     title_size = 20
     label_size = 18
 
-    # name_planets = env.names
     name_planets = (np.arange(np.shape(state)[1])+1).astype(str)
     fig, axes = plt.subplots(nrows=int(cases//2), ncols= 2, layout = 'constrained', figsize = (8, 12))
 
@@ -756,7 +776,15 @@ def plot_runs_trajectory(cases, action, steps, seeds, env = None):
     plt.savefig('HermiteIntegration_runs/' + env.subfolder + 'plot_state_action%i'%action, dpi = 100)
     plt.show()
     
-def plot_steps_reward(values, rewards, env = None, steps = None, RL = False, reward_plot = False):
+def plot_steps_reward(values, rewards, env = None, steps = None):
+    """
+    plot_steps_reward: plot reward for different reward functions
+    INPUTS:
+        values: list of the actions taken for each case
+        rewards: reward functions and weights in a list of lists
+        env: environment used
+        steps: steps taken
+    """
     cases = len(values)
     if env == None:
         env = IntegrateEnv_Hermite()
@@ -780,9 +808,7 @@ def plot_steps_reward(values, rewards, env = None, steps = None, RL = False, rew
             tcomp.append(tcomp_i)
             name.append('Case_%i'%i)
         
-
         Reward = np.load(env_hermite.settings['Integration']['savefile'] + env_hermite.subfolder + '_reward_'+str(z)+'.npy')
-
 
         if steps == None:
             steps = len(cons[0][:,0])
@@ -814,16 +840,12 @@ def plot_steps_reward(values, rewards, env = None, steps = None, RL = False, rew
             ax0.set_ylabel('Pair-wise distance', fontsize = labelsize)
             ax0.tick_params(axis='both', which='major', labelsize=labelsize)
             
-        # ax1.set_yscale('symlog')
-
         # Plot energy errors
         lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
 
         for i in range(cases): # plot all combinations with constant dt and order
-            # label = 'O%i, t_step = %1.1E'%(env.actions[values[i][0]][0], env.actions[values[i][0]][1])
             label = "Tstep parameter %.2E"%(env.actions[i])
             linestyle = lines[i%len(lines)]
-            # plot_evolution(ax4, x_axis, E_E[:, i], label = label, colorindex = i, linestyle = linestyle)
             plot_evolution(ax1, x_axis[1:-1], Reward[i, 1:-1], label = label, colorindex = i, linestyle = linestyle)
         
         if z == len(rewards)-1:
@@ -832,9 +854,6 @@ def plot_steps_reward(values, rewards, env = None, steps = None, RL = False, rew
                        fancybox = True, ncol = cases//2+cases%2, fontsize = labelsize)
 
         ax1.set_ylabel(r'$\vert\vert fr_i - r_j\vert\vert$')
-            
-        # ax[1].set_ylabel('Angular momentum error', fontsize = labelsize)
-        # ax1.set_xlabel('Step', fontsize = labelsize)
         ax1.set_ylabel('Reward',  fontsize = labelsize)
         ax1.tick_params(axis='both', which='major', labelsize=labelsize)
     
@@ -842,12 +861,17 @@ def plot_steps_reward(values, rewards, env = None, steps = None, RL = False, rew
     plt.show()
     
 def plot_int_comparison(I, steps, ENV):
+    """
+    plot_int_comparison: compare different integrators
+    INPUTS:
+        I: list of integrators
+        steps: steps taken
+        ENV: list of environments used for each integration
+    """
     fig = plt.figure(figsize = (10,14))
     gs1 = matplotlib.gridspec.GridSpec(len(I)+2, 1, figure = fig, left=0.13, wspace=0.3, 
                                        hspace = 0.5, right = 0.99,
                                         top = 0.97, bottom = 0.11)
-
-
     ENERGY = []
     AX = []
     for z in range(len(I)):
@@ -900,11 +924,9 @@ def plot_int_comparison(I, steps, ENV):
         ax1.set_yticks(np.arange(1, 6))
         ax1.tick_params(axis='both', which='major', labelsize=labelsize)
         AX.append(ax1)
-        # ax1.set_yscale('symlog')
 
         # Plot energy errors
         lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
-
 
     ax2 = fig.add_subplot(gs1[-1, 0]) 
     label = "Tstep parameter %.2E"%(env.actions[i])
@@ -920,8 +942,7 @@ def plot_int_comparison(I, steps, ENV):
     ax2.set_xlabel("Steps",fontsize = labelsize+1)
     AX.append(ax2)
 
-
-        #  Draw vertical lines for close encounters
+    #  Draw vertical lines for close encounters
     X_vert = []
     for D in distance:
         index_x = np.where(D < 1)[0]
@@ -930,7 +951,6 @@ def plot_int_comparison(I, steps, ENV):
         return [x for xs in xss for x in xs]
     X_vert = flatten(X_vert)
     for ax_vert in AX[0:-1]:
-        # ax_vert.set_xticklabels( () )
         for X_D in X_vert:
             ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
                         clip_on = False, alpha = 0.2, linestyle = '--')
@@ -942,12 +962,19 @@ def plot_int_comparison(I, steps, ENV):
     plt.savefig('./MixedIntegration_runs/'+ 'Comparison_steps.png', dpi = 100)
     plt.show()
 
-def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, reward_plot = False):
+def plot_EvsTcomp(values, initializations, steps = None, env = None):
+    """
+    plot_EvsTcomp: plot energy error vs computation time for different cases
+    INPUTS:
+        values: list of the actions taken for each case
+        initializations: number of initializations used to generate the data
+        steps: steps taken
+        env: environment used
+    """
     if env == None:
         env = IntegrateEnv_Hermite()
 
     cases = len(values)
-
 
     E_final = np.zeros((initializations, cases+1))
     Tcomp_final = np.zeros((initializations, cases+1))
@@ -1001,14 +1028,10 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     msize = 50
     alphavalue = 0.5
     alphavalue2 = 0.9
-    # bins = 100
-    # X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1], Tcomp_final[:, 2]]
-    # Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1], E_final[:, 2]]
     X = [Tcomp_final[:, 0], Tcomp_final[:, -2],Tcomp_final[:, -1]]
     Y = [E_final[:, 0], E_final[:, -2], E_final[:, -1]]
     labels = [r'$\mu = $%.1E'%env.actions[0], r'$\mu = $%.1E'%env.actions[-1],"RL", r'$\mu = $%.1E'%env.actions[2]]
     markers = ['o', 'x', 's', 'o']
-
 
     ax1 = fig.add_subplot(gs1[1, 0]) 
     ax2 = fig.add_subplot(gs1[0, 0])
@@ -1028,32 +1051,12 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
         ax3.hist(Y[i], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
                  edgecolor=colors[i], linewidth=1.2, zorder =order[i])
     
-    # xsize = len(Tcomp_final[:, 0])
-    # Y = np.array([E_final[:, 0], E_final[:, -2], E_final[:, -1]])
-    # C = np.array([np.ones(xsize)*0, np.ones(xsize)*1, np.ones(xsize)*2])
-    # X = X.flatten()
-    # Y = Y.flatten()
-    # C = C.flatten()
-    # print(len(X), len(Y), len(C))
-    # g = sns(X, Y, shade = True, cmap = 'plasma')
-    # # plt.tricontour(Tcomp_final[:, 0], E_final[:, 0], np.ones(xsize)*0)
-    # # plt.tricontour(Tcomp_final[:, -2], E_final[:, -2],np.ones(xsize)*1)
-    # # plt.tricontour(Tcomp_final[:, -1], E_final[:, -1], np.ones(xsize)*2)
-    # plt.tricontour(X, Y, C)
-
     labelsize = 12
     ax1.legend(fontsize = labelsize)
-    # ax1.set_title('Type %i, W1 = %.2f, W2 = %.2f, W3 = %.2f'%(rewards[z][0],\
-                                                                # rewards[z][1],\
-                                                                # rewards[z][2],\
-                                                                # rewards[z][3]))
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
     ax3.set_yscale('log')
-    # ax1.set_xscale('log')
-    # ax2.set_xscale('log')
-    # ax1.set_xscale('symlog', linthresh= 1e-1)
     ax1.set_xlim([5e-1, 3])
     ax2.set_xlim([5e-1, 3])
     ax1.set_ylim([1e-14, 1e1])
@@ -1064,12 +1067,19 @@ def plot_EvsTcomp(values, initializations, steps = None, env = None, RL = True, 
     plt.savefig('./HermiteIntegration_runs/'+ env.subfolder+'Hermite_comparison_steps_rewards.png', dpi = 100)
     plt.show()
 
-def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL = True, reward_plot = False):
+def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None):
+    """
+    plot_EvsTcomp_integrators: plot energy error vs computation time for different integrators
+    INPUTS:
+        I: list of integrators
+        initializations: number of initializations used to generate the data
+        steps: steps taken
+        env: environment used
+    """
     if env == None:
         env = IntegrateEnv_Hermite()
 
     cases = len(I)
-
 
     E_final = np.zeros((initializations, cases))
     Tcomp_final = np.zeros((initializations, cases))
@@ -1120,7 +1130,6 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
         E_final2[z, :] = E_E2[-1, :]
         Tcomp_final2[z, :] = T_c2[-1, :]
 
-
     fig = plt.figure(figsize = (6, 5))
     gs1 = matplotlib.gridspec.GridSpec(1, 1, figure = fig,\
                                        left=0.15, wspace=0.3, 
@@ -1130,13 +1139,11 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     msize = 50
     alphavalue = 0.5
     alphavalue2 = 0.9
-    # bins = 100
     X = [Tcomp_final[:, 0], Tcomp_final[:, 1],Tcomp_final[:, 2]]
     Y = [E_final[:, 0], E_final[:, 1], E_final[:, 2]]
     X2 = [Tcomp_final2[:, 0], Tcomp_final2[:, 1],Tcomp_final2[:, 2]]
     Y2 = [E_final2[:, 0], E_final2[:, 1], E_final2[:, 2]]
     markers = ['o', 'x', 's', 'o']
-
 
     ax1 = fig.add_subplot(gs1[0, 0]) 
     labels1 = [r'%s: $\mu$ = %.1E'%(I[0], ENV[0].actions[0]),\
@@ -1158,7 +1165,6 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
-    # ax1.set_xscale('log')
     ax1.tick_params(axis='both', which='major', labelsize=labelsize)
     ax1.set_xlim([6e-1, 3])
     ax1.set_ylim([1e-13, 1e5])
@@ -1167,7 +1173,7 @@ def plot_EvsTcomp_integrators(I, initializations, steps = None, env = None, RL =
     plt.show()
     
 if __name__ == '__main__':
-    experiment = 4
+    experiment = 4 # number of the experiment to be run
     seed = 1
     
     if experiment == 0: 
@@ -1191,7 +1197,7 @@ if __name__ == '__main__':
                 reward = run_trajectory(seed = seeds[j], action = action, env = env_hermite,\
                                name_suffix = name_suff, steps = steps)
                 
-        # runs_trajectory_initializations(cases, action, steps)
+        runs_trajectory_initializations(cases, action, steps)
         cases = 6 # only plot x
         plot_runs_trajectory(cases, action, steps, seeds, env_hermite)
         
@@ -1218,7 +1224,6 @@ if __name__ == '__main__':
         
         def runs_trajectory_initialization_cases(cases, steps, reward_functions):    
             for z in range(len(reward_functions)):
-            # for z in [5, 6]:
                 Reward = np.zeros((cases*initializations, steps))
                 for i in range(initializations):
                     for j in range(cases):
@@ -1241,12 +1246,12 @@ if __name__ == '__main__':
                     Reward[i, :] = reward
                 np.save(env_hermite.settings['Integration']['savefile'] + env_hermite.subfolder + '_reward_multiple_%i'%z, Reward)
 # 
-        # runs_trajectory_initialization_cases(cases, steps, reward_functions)
-        # plot_rewards2(values, initializations, reward_functions[0:4], steps = steps, env = env_hermite)
+        runs_trajectory_initialization_cases(cases, steps, reward_functions)
+        plot_rewards2(values, initializations, reward_functions[0:4], steps = steps, env = env_hermite)
         plot_one_reward(values, initializations, reward_functions, 0,  steps = steps, env = env_hermite)
         
-        # runs_trajectory_initialization_cases_random_action(cases, steps, reward_functions)
-        # plot_rewards_random_action(values, initializations, reward_functions, steps = steps, env = env_hermite)
+        runs_trajectory_initialization_cases_random_action(cases, steps, reward_functions)
+        plot_rewards_random_action(values, initializations, reward_functions, steps = steps, env = env_hermite)
 
     elif experiment == 2:
         # Plot training results
@@ -1280,17 +1285,15 @@ if __name__ == '__main__':
 
     elif experiment == 4:
         ##########################################
-        # Run all possibilities with Symple vs RL
+        # Run all possibilities with Hermite vs RL
         env_hermite = IntegrateEnv_Hermite()
         name_subfolder = "3_AllActionsRL/"
         env_hermite.subfolder = name_subfolder
-
 
         cases = len(env_hermite.actions)
         steps = 300
         values = np.arange(cases)
         env_hermite.settings['Integration']['check_step'] = 1e-1
-        # seed = 0
         def runs_trajectory_cases(cases, steps):
             Reward = np.zeros((cases+1, steps)) # RL
             for j in range(cases):
@@ -1309,7 +1312,6 @@ if __name__ == '__main__':
         runs_trajectory_cases(cases, steps)
         plot_steps(values, steps = steps, env = env_hermite, RL = True, reward_plot = True)
         plt.show()
-
 
     elif experiment == 5:
         ##########################################
@@ -1368,8 +1370,7 @@ if __name__ == '__main__':
                 reward = run_trajectory(seed = seed[i], action = 'RL', env = env_hermite,\
                                 name_suffix = name_suff, steps = steps)
                 
-                
-        # runs_trajectory_cases(cases, steps)
+        runs_trajectory_cases(cases, steps)
         plot_EvsTcomp(values, initializations, steps = steps, env = env_hermite, RL = True, reward_plot = True)
 
     elif experiment == 7:
@@ -1387,7 +1388,6 @@ if __name__ == '__main__':
 
         model_path = env.settings['Training']['savemodel'] + 'model_weights' +str(2100)+ '.pth'
         
-        # I = ['Ph4', 'Huayno']
         def runs_trajectory_cases(steps):
                 for i in range(len(I)):
                     name_suff = '_'+I[i] 
@@ -1412,14 +1412,14 @@ if __name__ == '__main__':
 
         seed = 0
         steps = 300
-        # runs_trajectory_cases(steps)
+        runs_trajectory_cases(steps)
         plot_int_comparison(I, steps, ENV)
 
         steps = 100
         initializations = 100
         seed = np.arange(initializations)
-        # runs_trajectory_fixed(steps, initializations, seed)
-        # plot_EvsTcomp_integrators(I, initializations, steps = steps, env = ENV, RL = True, reward_plot = True)
+        runs_trajectory_fixed(steps, initializations, seed)
+        plot_EvsTcomp_integrators(I, initializations, steps = steps, env = ENV, RL = True, reward_plot = True)
 
 
     elif experiment == 8:
@@ -1441,8 +1441,7 @@ if __name__ == '__main__':
             np.save(env_hermite.settings['Integration']['savefile'] + env_hermite.subfolder + '_reward', Reward)
             return Reward
         
-        # CASES  = [800, 1000, 1500, 2000]
-        CASES  = [2300]
+        CASES  = [800, 1000, 1500, 2000]
         for C in CASES:
             env_hermite = IntegrateEnv_Hermite()
             name_subfolder = "7_automatic_steps/"+str(C)+'/'
