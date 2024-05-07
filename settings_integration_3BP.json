@@ -1,0 +1,73 @@
+{
+    "InitialConditions":
+    {
+       "units": "si",
+       "seed": 1,
+       "n_bodies": 3, 
+       "ranges_triple": {
+		  "x1": [5.0, 20.0],
+		  "y1": [0.0, 10.0],
+		  "x2": [0.0, -10.0],
+		  "y2": [5.0, 20.0]
+	       }
+    },
+    "Integration":
+    {
+        "savefile": "./Integration_test_runs/",
+        "subfolder": "",
+        "suffix": "",
+	"savestate": true,
+        "max_steps": 100,
+        "check_step": 0.1, 
+        "t_step_global": 1e-3,
+        "t_step_local": 1e-3,
+        "integrator": "Hermite",
+        "max_error_accepted": 1e-1,
+        "plot": false
+    },
+    "RL":
+    {
+        "state": "cart",
+        "state_options_info": ["norm", "cart", "dist"],
+        "action": "range", 
+        "number_actions": 4,
+	"range_action": {
+		"Hermite": [1e-4, 1e-1],
+		"Ph4": [1e-4, 1e-1],
+		"Huayno": [1e-5, 1e-1],
+		"Symple": [5e-5, 1e-1]
+		},
+	"reward_f": 4,
+        "weights": [1.0, 10, 30.0, 1.0e-2]
+     },
+
+    "Training":
+    {
+    	"savemodel": "./Training_Results/",
+    	"subfolder": "",
+    	"suffix":"",
+    	"display": true,
+        "max_episodes": 3000,
+        "hidden_layers": 3,
+        "neurons": 100,
+        "lr": 5e-4,
+        "batch_size": 128,
+        "gamma": 0.99,
+        "eps_start": 0.9,
+        "eps_end": 0.05,
+        "eps_decay": 1000,
+        "tau": 0.005
+    },
+    "Hyperparam_optim":
+    {
+    "max_iter": 10,
+    "individuals": 8,
+    "bnds":{
+    	    "epochs": [10, 1000],
+            "layers": [2, 6],
+            "neurons": [10, 125], 
+            "lr": [1e-5, 1e-2]
+              }
+    
+    }
+}
