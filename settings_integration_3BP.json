@@ -18,9 +18,7 @@
         "suffix": "",
 	"savestate": true,
         "max_steps": 100,
-        "check_step": 0.1, 
-        "t_step_global": 1e-3,
-        "t_step_local": 1e-3,
+        "check_step": 1e-1, 
         "integrator": "Hermite",
         "max_error_accepted": 1e-1,
         "plot": false
@@ -37,8 +35,8 @@
 		"Huayno": [1e-5, 1e-1],
 		"Symple": [5e-5, 1e-1]
 		},
-	"reward_f": 4,
-        "weights": [1.0, 10, 30.0, 1.0e-2]
+	"reward_f": 0,
+        "weights": [1.0, 10, 1e-2]
      },
 
     "Training":
@@ -48,6 +46,7 @@
     	"suffix":"",
     	"display": true,
         "max_episodes": 3000,
+        "testdata_size": 10,
         "hidden_layers": 3,
         "neurons": 100,
         "lr": 5e-4,

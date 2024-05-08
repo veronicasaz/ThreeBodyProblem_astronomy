@@ -59,6 +59,8 @@ class ThreeBodyProblem_env(gym.Env):
 
 
     def _initialize_RL(self):
+        integrator = self.settings['Integration']['integrator']
+
         # STATE
         if self.settings["RL"]["state"] == 'cart':
             self.observation_space_n = 4*self.n_bodies+1
@@ -69,8 +71,8 @@ class ThreeBodyProblem_env(gym.Env):
         # ACTION
         # From a range of paramters
         if self.settings['RL']['action'] == 'range':
-            low = self.settings['RL']['range_action'][0]
-            high = self.settings['RL']['range_action'][-1]
+            low = self.settings['RL']['range_action'][integrator][0]
+            high = self.settings['RL']['range_action'][integrator][-1]
             n_actions = self.settings['RL']['number_actions']
             self.actions = np.logspace(np.log10(low), np.log10(high), \
                                        num = n_actions, base = 10,
@@ -84,7 +86,7 @@ class ThreeBodyProblem_env(gym.Env):
     def _initial_conditions(self):
 
         bodies = Particles(self.settings['InitialConditions']['n_bodies'])
-        ranges = self.settings['Integration']['ranges_triple']
+        ranges = self.settings['InitialConditions']['ranges_triple']
         ranges_np = np.array(list(ranges.values()))
 
         bodies.mass = (1.0, 1.0, 1.0) | units.MSun
@@ -123,7 +125,7 @@ class ThreeBodyProblem_env(gym.Env):
 
         # TODO: tstep not implemented for now
         self.gravity = self._initialize_integrator(self.settings['Integration']['integrator'])
-        self.gravity = self._apply_action(self.actions[0])
+        self.gravity = self._apply_action(self.actions[0], self.settings['Integration']['integrator'], self.gravity)
         self.gravity.particles.add_particles(self.particles)
             
         self.channel = self.gravity.particles.new_channel_to(self.particles)
@@ -171,7 +173,7 @@ class ThreeBodyProblem_env(gym.Env):
         t = (self.t_cumul) | self.units_time
 
         # Integrate
-        self.gravity = self._apply_action(self.actions[action])
+        self.gravity = self._apply_action(self.actions[action], self.settings['Integration']['integrator'], self.gravity)
         t0_step = time.time()
         self.gravity.evolve_model(t)
         T = time.time() - t0_step
@@ -211,7 +213,7 @@ class ThreeBodyProblem_env(gym.Env):
         return state, reward, terminated, info
     
     def close(self):
-        self.gravity()
+        self.gravity.stop()
 
     ## ADDITIONAL FUNCTIONS NEEDED
     def units(self):
@@ -220,7 +222,7 @@ class ThreeBodyProblem_env(gym.Env):
             self.G = constants.G
             self.units_G = units.m**3 * units.kg**(-1) * units.s**(-2)
             self.units_energy = units.m**2 * units.s**(-2)* units.kg
-            self.units_time = units.Myr
+            self.units_time = units.yr
 
             self.units_t = units.s 
             self.units_l = units.m
@@ -255,7 +257,7 @@ class ThreeBodyProblem_env(gym.Env):
                 g = Hermite()
             # Collision detection and softening
             # g.stopping_conditions.timeout_detection.enable()
-            # g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+            g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
         elif integrator_type == 'Ph4': 
             if self.settings['InitialConditions']['units'] == 'si':
                 g = ph4(self.converter, number_of_workers = 1)
@@ -319,9 +321,9 @@ class ThreeBodyProblem_env(gym.Env):
         OUTPUTS: 
             state: state array to be given to the reinforcement learning algorithm
         """
-        particles_p_nbody = self.converter.to_generic(particles[0:self.n_stars].position).value_in(nbody_system.length)
-        particles_v_nbody = self.converter.to_generic(particles[0:self.n_stars].velocity).value_in(nbody_system.length/nbody_system.time)
-        particles_m_nbody = self.converter.to_generic(particles[0:self.n_stars].mass).value_in(nbody_system.mass)
+        particles_p_nbody = self.converter.to_generic(particles.position).value_in(nbody_system.length)
+        particles_v_nbody = self.converter.to_generic(particles.velocity).value_in(nbody_system.length/nbody_system.time)
+        particles_m_nbody = self.converter.to_generic(particles.mass).value_in(nbody_system.mass)
 
         if self.settings['RL']['state'] == 'norm':
             state = np.zeros((self.n_bodies)*3) # m, norm r, norm v
@@ -416,13 +418,6 @@ class ThreeBodyProblem_env(gym.Env):
         self.state[step, :, 1] = particles.mass.value_in(self.units_m)
         self.state[step, :, 2:5] = particles.position.value_in(self.units_l)
         self.state[step, :, 5:] = particles.velocity.value_in(self.units_l/self.units_t)
-
-        particles_name_code = []
-        for i in range(len(particles)):
-            if particles[i].name == 'star':
-                particles_name_code.append(0)
-            else:
-                particles_name_code.append(1)
 
         self.cons[step, 0] = action
         self.cons[step, 1] = R
