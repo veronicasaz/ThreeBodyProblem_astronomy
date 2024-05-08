@@ -167,8 +167,16 @@ def plot_test_reward(a, test_reward):
     y = [REWARD_avg, EERROR_avg, TCOMP_avg]
     e = [REWARD_std, EERROR_std, TCOMP_std]
     for plot in range(3):
-        ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
-                          alpha = 1, fmt='o')
+        # ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
+        #                   alpha = 1, fmt='o')
+        y[plot] = np.array(y[plot])
+        e[plot] = np.array(e[plot])
+        ax[plot].scatter(x_episodes, y[plot] + e[plot], c = colors[1], \
+                          alpha = 0.5, marker = '.')
+        ax[plot].scatter(x_episodes, y[plot] - e[plot], c = colors[1], \
+                          alpha = 0.5, marker = '.')
+        ax[plot].scatter(x_episodes, y[plot], c = colors[0], \
+                          alpha = 1, marker = '.')
 
     for ax_i in ax: 
         ax_i.tick_params(axis='x', labelsize=fontsize-5)

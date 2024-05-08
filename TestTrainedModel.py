@@ -113,7 +113,7 @@ if __name__ == '__main__':
         NAMES.append('_actionRL')
         TITLES.append(r"RL-variable $\mu$")
         env.settings['Integration']['suffix'] = NAMES[0]
-        # run_trajectory(env, action = 'RL')
+        run_trajectory(env, action = 'RL')
         for act in range(env.settings['RL']['number_actions']):
             NAMES.append('_action'+ str(env.actions[act]))
             TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
