@@ -126,7 +126,7 @@ def plot_distance_to_one(ax, x_axis, state, labelsize = 12,
 
     return Dist
 
-def plot_actions_taken(ax, x_axis, y_axis):
+def plot_actions_taken(ax, x_axis, y_axis, colorindex = None, label = None):
     """
     plot_actions_taken: plot steps vs actions taken by the RL algorithm
     INPUTS:
@@ -134,9 +134,12 @@ def plot_actions_taken(ax, x_axis, y_axis):
         x_axis: time or steps to be plotted in the x axis
         y_axis: data for the y axis
     """
-    colors = colors2[0]
-    ax.plot(x_axis, y_axis, color = colors, linestyle = '-', alpha = 0.5,
-            marker = '.', markersize = 8)
+    if colorindex != None:
+        color = colors[(colorindex+2)%len(colors)] # start in the blues
+    else:
+        color = colors[0]
+    ax.plot(x_axis, y_axis, color = color, linestyle = '-', alpha = 0.5,
+            marker = '.', markersize = 8, label = label)
     ax.grid(axis='y')
 
 def plot_evolution(ax, x_axis, y_axis, label = None, color = None, 

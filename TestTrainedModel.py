@@ -18,7 +18,8 @@ import gym
 from env.ThreeBP_env import ThreeBodyProblem_env
 from TrainRL import train_net
 from TestEnvironment import run_trajectory, load_state_files
-from Plots_TestTrained import plot_reward, plot_balance, plot_test_reward, plot_trajs
+from Plots_TestTrained import plot_reward, plot_balance, plot_test_reward,\
+    plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp
 
 def create_testing_dataset(env, seeds):
     state = np.zeros((len(seeds), 6*3)) # r, v for 3 particles
@@ -140,36 +141,21 @@ if __name__ == '__main__':
         #     'Action_comparison_RL3.png'
         # plot_comparison_end(env, STATE, CONS, TCOMP, NAMES, save_path, plot_traj_index=[0,1])
 
-    elif experiment == 4:
-        def start_env():
-            env = Cluster_env()
-            env.settings['Integration']['subfolder'] = '6_run_many/'
-            env.settings['Integration']['max_steps'] = 60
-            env.settings['Integration']['savestate'] = True
-            return env
+    elif experiment == 4: 
+        # Plot evolution for many RL models
+        env = ThreeBodyProblem_env()
+        env.settings['Integration']['subfolder'] = '4_ManyRLmodelsRL/'
 
-        initializations = 10
-        seeds = np.arange(initializations)
         NAMES = []
+        TITLES = []
 
-
-        for i in range(initializations):
-            env = start_env()
-            env.settings['InitialConditions']['seed'] = seeds[i]
-            NAMES.append('_actionRL_%i'%i)
-            print(NAMES)
-            env.settings['Integration']['suffix'] = NAMES[i]
-            # run_trajectory(env, action = 'RL')
-
-        for act in range(env.settings['RL']['number_actions']):
-            for i in range(initializations):
-                print(act, i)
-                env = start_env()
-                env.settings['InitialConditions']['seed'] = seeds[i]
-                name = '_action_%i_%i'%(act, i)
-                NAMES.append(name)
-                env.settings['Integration']['suffix'] = name
-                # run_trajectory(env, action = act)
+        RL_models = ['0', '20', '40', '60', '80']
+        for act in range(len(RL_models)):
+            NAMES.append('_actionRL_'+ str(RL_models[act]))
+            TITLES.append(r"RL-variable $\mu$ " + RL_models[act])
+            env.settings['Integration']['suffix'] = NAMES[act]
+            model_path = env.settings['Training']['savemodel'] +'model_weights' +str(RL_models[act]) +'.pth'
+            run_trajectory(env, action = 'RL', model_path = model_path)
 
         STATE = []
         CONS = []
@@ -181,7 +167,47 @@ if __name__ == '__main__':
             CONS.append(cons)
             TCOMP.append(tcomp)
 
-        env = start_env()
+        save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
+            'Action_comparison_RL.png'
+        plot_trajs_RL(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index='bestworst')
+
+    elif experiment == 5:
+        # Run final energy vs computation time for different cases
+        initializations = 10
+        seeds = np.arange(initializations)
+
+        env = ThreeBodyProblem_env()
+        env.settings['Integration']['subfolder'] = '5_EvsTcomp/'
+
+        NAMES = []
+        TITLES = []
+
+        # RL
+        for ini in range(initializations):
+            NAMES.append('_actionRL_seed%i'%seeds[ini])
+            TITLES.append(r"RL-variable $\mu$, seed %i"%seeds[ini])
+            env.settings['Integration']['suffix'] = NAMES[ini]
+            env.settings['InitialConditions']['seed'] = seeds[ini]
+            run_trajectory(env, action = 'RL')
+
+        for act in range(env.settings['RL']['number_actions']):
+            for ini in range(initializations):
+                NAMES.append('_action%i_seed%i'%(env.actions[act], seeds[ini]))
+                TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
+                env.settings['Integration']['suffix'] = NAMES[(act+1)*initializations + ini]
+                env.settings['InitialConditions']['seed'] = seeds[ini]
+                run_trajectory(env, action = act)
+
+        STATE = []
+        CONS = []
+        TCOMP = []
+        for act in range(len(NAMES)):
+            env.settings['Integration']['suffix'] = NAMES[act]
+            state, cons, tcomp = load_state_files(env)
+            STATE.append(state)
+            CONS.append(cons)
+            TCOMP.append(tcomp)
+
         save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
             'Energy_vs_tcomp.png'
         plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, NAMES, initializations, save_path, plot_traj_index=[0, 1, 2, 3, 4])
