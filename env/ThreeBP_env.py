@@ -372,21 +372,27 @@ class ThreeBodyProblem_env(gym.Env):
             return 0
         else:
             if self.settings['RL']['reward_f'] == 0: 
-                a = -W[0]* (np.log10(abs(Delta_E)) - np.log10(abs(1e-8))) +\
+                a = -W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
+                         abs(np.log10(abs(Delta_E)))**2+\
                     -W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))) +\
                     W[2]/abs(np.log10(action)) 
                 return a
             
-            # elif self.settings['RL']['reward_f'] == 1:
-            #     a = -(W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
-            #              abs(np.log10(abs(Delta_E)))**2 +\
-            #              W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))))*\
-            #              W[2]/abs(np.log10(action))
-            #     return a
+            elif self.settings['RL']['reward_f'] == 1: 
+                a = -W[0]* (np.log10(abs(Delta_E)) - np.log10(abs(1e-8))) +\
+                    -W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))) +\
+                    W[2]/np.log10(T)
+                return a
             
-            elif self.settings['RL']['reward_f'] == 2:
-                a = Delta_E
-                a = -W[0]*np.log10(abs(a)) + \
+            if self.settings['RL']['reward_f'] == 2:
+                a = -(W[0]* np.log10(abs(Delta_E)) + \
+                         W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev)))) *\
+                        (W[2]*1/abs(np.log10(action)))
+                return a
+            
+                
+            elif self.settings['RL']['reward_f'] == 3:
+                a = -W[0]*np.log10(abs(Delta_E)) + \
                     W[2]/abs(np.log10(action))
                 return a
     

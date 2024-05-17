@@ -83,7 +83,7 @@ def load_reward(a, suffix = ''):
     return score, EnergyE, HuberLoss, tcomp, testReward
 
 if __name__ == '__main__':
-    experiment = 3 # number of the experiment to be run
+    experiment = 1 # number of the experiment to be run
     seed = 0
 
     if experiment == 0: # Create testing dataset
@@ -105,41 +105,43 @@ if __name__ == '__main__':
         plot_test_reward(env, testReward)
         
     elif experiment == 3: 
+        
+        seeds = np.arange(5)
         # Plot evolution for all actions, one initialization
-        env = ThreeBodyProblem_env()
-        env.settings['Integration']['subfolder'] = '3_AllActionsRL/'
+        for i in range(len(seeds)):
+            env = ThreeBodyProblem_env()
+            env.settings['Integration']['subfolder'] = '3_AllActionsRL/'
 
-        NAMES = []
-        TITLES = []
-        NAMES.append('_actionRL')
-        TITLES.append(r"RL-variable $\mu$")
-        env.settings['Integration']['suffix'] = NAMES[0]
-        run_trajectory(env, action = 'RL')
-        for act in range(env.settings['RL']['number_actions']):
-            NAMES.append('_action'+ str(env.actions[act]))
-            TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
-            env.settings['Integration']['suffix'] = NAMES[act+1]
-            # run_trajectory(env, action = act)
+            NAMES = []
+            TITLES = []
+            NAMES.append('_actionRL'+'_seed_'+str(seeds[i]))
+            TITLES.append(r"RL-variable $\mu$")
+            env.settings['Integration']['suffix'] = NAMES[0]
+            env.settings['InitialConditions']['seed'] = seeds[i]
+            env.settings['Integration']['max_steps'] = 300
 
-        STATE = []
-        CONS = []
-        TCOMP = []
-        for act in range(len(NAMES)):
-            env.settings['Integration']['suffix'] = NAMES[act]
-            state, cons, tcomp = load_state_files(env)
-            STATE.append(state)
-            CONS.append(cons)
-            TCOMP.append(tcomp)
+            model_path = env.settings['Training']['savemodel'] +'model_weights' +str(2500) +'.pth'
+            run_trajectory(env, action = 'RL', model_path = model_path)
+            
+            for act in range(env.settings['RL']['number_actions']):
+                NAMES.append('_action_'+ str(env.actions[act])+'_seed_'+str(seeds[i]))
+                TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
+                env.settings['Integration']['suffix'] = NAMES[act+1]
+                # run_trajectory(env, action = act)
 
-        save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
-            'Action_comparison_RL.png'
-        plot_trajs(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index=[0,1])
-        # save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
-        #     'Action_comparison_RL2.png'
-        # plot_distance_action(env, STATE, CONS, TCOMP, NAMES, save_path)
-        # save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
-        #     'Action_comparison_RL3.png'
-        # plot_comparison_end(env, STATE, CONS, TCOMP, NAMES, save_path, plot_traj_index=[0,1])
+            STATE = []
+            CONS = []
+            TCOMP = []
+            for act in range(len(NAMES)):
+                env.settings['Integration']['suffix'] = NAMES[act]
+                state, cons, tcomp = load_state_files(env)
+                STATE.append(state)
+                CONS.append(cons)
+                TCOMP.append(tcomp)
+
+            save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
+                str(seeds[i]) + 'Action_comparison_RL.png'
+            plot_trajs(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index=[0,1])
 
     elif experiment == 4: 
         # Plot evolution for many RL models
@@ -149,11 +151,13 @@ if __name__ == '__main__':
         NAMES = []
         TITLES = []
 
-        RL_models = ['0', '20', '40', '60', '80']
+        # RL_models = ['0', '140', '200', '340', '600', '700', '800']
+        RL_models = ['1600', '1660', '1700', '1960']
         for act in range(len(RL_models)):
             NAMES.append('_actionRL_'+ str(RL_models[act]))
             TITLES.append(r"RL-variable $\mu$ " + RL_models[act])
             env.settings['Integration']['suffix'] = NAMES[act]
+            env.settings['Integration']['max_steps'] = 300
             model_path = env.settings['Training']['savemodel'] +'model_weights' +str(RL_models[act]) +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
 
@@ -173,7 +177,7 @@ if __name__ == '__main__':
 
     elif experiment == 5:
         # Run final energy vs computation time for different cases
-        initializations = 10
+        initializations = 500
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
@@ -192,11 +196,12 @@ if __name__ == '__main__':
 
         for act in range(env.settings['RL']['number_actions']):
             for ini in range(initializations):
-                NAMES.append('_action%i_seed%i'%(env.actions[act], seeds[ini]))
+                name = '_action%i_seed%i'%(act, seeds[ini])
+                NAMES.append(name)
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
-                env.settings['Integration']['suffix'] = NAMES[(act+1)*initializations + ini]
+                env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
-                run_trajectory(env, action = act)
+                # run_trajectory(env, action = act)
 
         STATE = []
         CONS = []
@@ -210,6 +215,6 @@ if __name__ == '__main__':
 
         save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
             'Energy_vs_tcomp.png'
-        plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, NAMES, initializations, save_path, plot_traj_index=[0, 1, 2, 3, 4])
+        plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, NAMES, seeds, save_path)
 
 

@@ -206,7 +206,9 @@ def test_network(env, model):
         tcomp = 0
         rew = 0
         terminated = False
+        steps = 0
         while terminated == False: #steps 
+            steps += 1
             # state = torch.tensor(state, dtype=torch.float32).unsqueeze(0)
             state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
             action = model(state).max(1)[1].view(1, 1)
@@ -217,9 +219,9 @@ def test_network(env, model):
 
         env.close()
             
-        Reward[testcase, 0] = rew # cumulative reward
-        Reward[testcase, 1] = info['Energy_error'] # last energy erro
-        Reward[testcase, 2] = tcomp
+        Reward[testcase, 0] = rew/steps # cumulative reward normalized by the number of steps reached
+        Reward[testcase, 1] = info['Energy_error'] # last energy error
+        Reward[testcase, 2] = tcomp/steps  # normalized by the number of steps reached
     
     return Reward.flatten()
 
@@ -354,7 +356,7 @@ def train_net(env = None, suffix = ''):
         save_tcomp.append(save_tcomp_list)
         save_test_reward.append(test_reward_list)
         
-        if episode_number %100 == 0:
+        if episode_number %10 == 0:
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
         else:
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights.pth') # save model

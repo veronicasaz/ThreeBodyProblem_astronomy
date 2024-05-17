@@ -19,8 +19,8 @@
 	"savestate": true,
         "max_steps": 100,
         "check_step": 1e-1, 
-        "integrator": "Symple",
-        "max_error_accepted": 1e-3,
+        "integrator": "Hermite",
+        "max_error_accepted": 1e-1,
         "plot": false
     },
     "RL":
@@ -36,7 +36,7 @@
 		"Symple": [1e-7, 1e-1]
 		},
 	"reward_f": 0,
-        "weights": [1.0, 1.0, 4]
+        "weights": [10.0, 50.0, 4.0]
      },
 
     "Training":
@@ -45,11 +45,11 @@
     	"subfolder": "",
     	"suffix":"",
     	"display": true,
-        "max_episodes": 3000,
-        "testdata_size": 5,
-        "hidden_layers": 3,
+        "max_episodes": 2500,
+        "testdata_size": 10,
+        "hidden_layers": 5,
         "neurons": 100,
-        "lr": 5e-4,
+        "lr": 1e-4,
         "batch_size": 128,
         "gamma": 0.99,
         "eps_start": 0.9,

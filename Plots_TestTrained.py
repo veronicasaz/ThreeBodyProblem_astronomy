@@ -131,7 +131,7 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     plt.show()
 
 def plot_test_reward(a, test_reward):
-    f, ax = plt.subplots(3, 1, figsize = (10,6))
+    f, ax = plt.subplots(4, 1, figsize = (10,6))
     plt.subplots_adjust(left=0.19, right=0.97, top=0.96, bottom=0.15, hspace = 0.3)
     fontsize = 18
 
@@ -153,6 +153,8 @@ def plot_test_reward(a, test_reward):
     EERROR_std = []
     TCOMP_avg = []
     TCOMP_std = []
+    EERROR_jump_avg = []
+    EERROR_jump_std= []
     for e in range(episodes):
         reshaped = np.array(test_reward[e]).reshape((-1, 3))
         REWARD_avg.append(np.mean(reshaped[:, 0]))
@@ -161,12 +163,17 @@ def plot_test_reward(a, test_reward):
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
 
+        jump_energy = np.zeros((np.shape(reshaped)[0]))
+        jump_energy[1:] = np.log10(abs(reshaped[1:, 1])) - np.log10(abs(reshaped[0:-1, 1]))
+        EERROR_jump_avg.append(min(jump_energy))
+        EERROR_jump_std.append(np.std(jump_energy))
+
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
 
-    y = [REWARD_avg, EERROR_avg, TCOMP_avg]
-    e = [REWARD_std, EERROR_std, TCOMP_std]
-    for plot in range(3):
+    y = [REWARD_avg, EERROR_avg, EERROR_jump_avg, TCOMP_avg]
+    e = [REWARD_std, EERROR_std, EERROR_jump_std, TCOMP_std]
+    for plot in range(4):
         # ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
         #                   alpha = 1, fmt='o')
         y[plot] = np.array(y[plot])
@@ -182,6 +189,18 @@ def plot_test_reward(a, test_reward):
         ax[plot].plot(x_episodes, y[plot], color= colors[0], \
                           alpha = 1, marker = '.')
 
+    def maxN(elements, n):
+        a = sorted(elements, reverse=True)[:n]
+        index = np.zeros(n)
+        for i in range(n):
+            print(np.where(elements == a[i])[0])
+            index[i] = np.where(elements == a[i])[0][0]
+        return index, a
+    index, value = maxN(y[0], 5) 
+    print("=============")
+    print(index, value)
+    ax[0].scatter(index, value, s = 500, marker = 'x', c = 'red')
+    
     for ax_i in ax: 
         ax_i.tick_params(axis='x', labelsize=fontsize-5)
         ax_i.tick_params(axis='y', labelsize=fontsize-5)
@@ -189,8 +208,10 @@ def plot_test_reward(a, test_reward):
     ax[-1].set_xlabel('Episode', fontsize = fontsize)
     ax[0].set_ylabel('R', fontsize = fontsize)
     ax[1].set_ylabel(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
-    ax[2].set_ylabel(r'$T comp$ (s)', fontsize = fontsize)
-    ax[2].set_yscale('log')
+    ax[2].set_ylabel(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
+    ax[3].set_ylabel(r'$T comp$ (s)', fontsize = fontsize)
+    ax[2].set_yscale('symlog', linthresh = 1e-1)
+    ax[3].set_yscale('log')
 
     # ax[1].set_yscale('log')
     
@@ -396,10 +417,10 @@ def plot_trajs_RL(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index =
     # Plot energy error
     for case in range(len(STATES)):
         plot_evolution(ax5, x_axis, R[1:, case], label = Titles[case], \
-                       colorindex = case, linestyle = linestyle[case], linewidth = linewidth)
+                       colorindex = case, linestyle = case, linewidth = linewidth)
         plot_evolution(ax6, x_axis, Energy_error[1:, case], label = Titles[case], \
-                       colorindex = case, linestyle = linestyle[case], linewidth = linewidth)
-        plot_actions_taken(ax4, x_axis, action[1:, case], colorindex = case, label = Titles[case])
+                       colorindex = case, linestyle = case, linewidth = linewidth)
+        plot_actions_taken(ax4, x_axis, action[1:, case], colorindex = case,  label = Titles[case])
         
     # Plot RL 
     ax4.set_ylim([-1, env.settings['RL']['number_actions']+1])
@@ -447,5 +468,75 @@ def plot_trajs_RL(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index =
     plt.savefig(save_path, dpi = 150)
     plt.show()
 
-def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'bestworst'):
-    a = 1
+def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
+    steps = len(TCOMP[0])
+    Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
+
+    # Group initializations per action type
+    types = len(TCOMP)//len(seeds)
+    X = []
+    Y = []
+    for i in range(types):
+        # x = np.zeros(len(seeds))
+        # y = np.zeros( len(seeds))
+            # a = Energy_error[1:, i*len(seeds)+j]
+            # i1 = np.nonzero(a)[0][-1]
+            # print(i*len(seeds)+j)
+            # x[j] = 
+            # y[j] = sum(T_comp[:, i*len(seeds)+j])
+        X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
+        Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
+
+    fig = plt.figure(figsize = (6,6))
+    gs1 = matplotlib.gridspec.GridSpec(2, 2, figure = fig, width_ratios = (3, 1), height_ratios = (1, 3), \
+                                       left=0.15, wspace=0.3, 
+                                       hspace = 0.2, right = 0.99,
+                                        top = 0.97, bottom = 0.11)
+    
+    msize = 50
+    alphavalue = 0.5
+    alphavalue2 = 0.9
+    markers = ['o', 'x', 's', 'o']
+    labels = ['RL']
+    for i in range(types-1):
+        labels.append(r'$\mu$ = %.1E'%env.actions[i])
+
+    ax1 = fig.add_subplot(gs1[1, 0]) 
+    ax2 = fig.add_subplot(gs1[0, 0])
+    ax3 = fig.add_subplot(gs1[1, 1])
+
+    binsx = np.logspace(np.log10(5e-1),np.log10(0.8e1), 50)
+    binsy = np.logspace(np.log10(1e-14),np.log10(1e-1), 50)
+
+    order = [0, 1,2,3]
+    alpha = [0.5, 0.5, 0.9, 0.9]
+    plot_index = [0, 1, 3, 6]
+    for i, index in enumerate(plot_index):
+        ax1.scatter(Y[index], X[index], color = colors[i], alpha = alphavalue, marker = markers[i],\
+                s = msize, label = labels[index], zorder =order[i])
+        ax2.hist(Y[index], bins = binsx, color = colors[i],  alpha = alpha[i], edgecolor=colors[i], \
+                 linewidth=1.2, zorder =order[i])
+        ax3.hist(X[index], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
+                 edgecolor=colors[i], linewidth=1.2, zorder =order[i])
+    
+    labelsize = 12
+    ax1.legend(fontsize = labelsize)
+    ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
+    ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
+    ax1.set_yscale('log')
+    ax2.set_yscale('log')
+    ax3.set_yscale('log')
+
+    # ax1.set_xscale('log')
+    # ax2.set_xscale('log')
+    # ax1.set_xlim([5e-1, 3])
+    # ax2.set_xlim([5e-1, 3])
+    # ax1.set_ylim([1e-14, 1e1])
+    # ax3.set_ylim([1e-14, 1e1])
+    # for ax in [ax1, ax2, ax3]:
+    #     ax.tick_params(axis='both', which='major', labelsize=labelsize)
+    
+    plt.savefig(save_path, dpi = 100)
+    plt.show()
+
+    

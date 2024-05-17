@@ -13,7 +13,7 @@ import torch
 from env.ThreeBP_env import ThreeBodyProblem_env
 from TrainRL import DQN
 
-from Plots_TestEnvironment import plot_initializations, plot_reward_comparison
+from Plots_TestEnvironment import plot_initializations, plot_rewards_multiple
 
 def run_trajectory(env, action = 'RL', model_path = None):
     """
@@ -57,6 +57,12 @@ def run_trajectory(env, action = 'RL', model_path = None):
             state, y, terminated, info = env.step(action.item())
         env.close()
     
+    elif action == 'random':
+        while terminated == False:
+            action_i = np.random.randint(len(env.actions), size = 1)
+            x, y, terminated, zz = env.step(action_i)
+            i += 1
+        env.close()
     # Case 3: fixed action throughout the simulation
     else:
         while terminated == False:
@@ -103,7 +109,8 @@ if __name__ == '__main__':
         cases = 6
         action = 0
         steps = 100
-        seeds = np.random.randint(10000, size = cases)
+        # seeds = np.random.randint(10000, size = cases)
+        seeds = np.arange(cases)
         subfolder = '1_Initializations/'
 
         # Run results
@@ -132,47 +139,68 @@ if __name__ == '__main__':
             CONS.append(cons)
             TCOMP.append(tcomp)
 
-        env.close()
-
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Initializations.png'
-        plot_initializations(STATE, CONS, TCOMP, NAMES, save_path, seed)
+        plot_initializations(STATE, CONS, TCOMP, NAMES, save_path, seeds)
     
-    elif experiment == 1: #reward study
-        steps = 100
-        subfolder = "2_RewardStudy/"
 
+    elif experiment == 1: # multiple reward functions
+        steps = 100
+        initializations = 20
+        seeds = np.arange(initializations)
+        subfolder = "2_RewardStudy/"
+        reward_functions = [
+                [0, 1.0, 10.0, 4.0],
+                [0, 10.0, 100.0, 4.0],
+                [1, 10.0, 100.0, 10.0],
+                [2, 10.0, 100.0, 4.0],
+                [3, 10.0, 0, 4.0]]
+        
         # Run 
         NAMES = []
         env = ThreeBodyProblem_env()
-        cases = len(env.actions)
-        for i in range(cases):
-            print(i, seed[i])
-            name = '_traj_action_%i'%(i)
-            NAMES.append(name)
+        for r_i in range(len(reward_functions)):
+            for i in range(initializations): # random actions
+                print(seeds[i])
+                name = 'R_%i_traj_initialization_%i'%(r_i, i)
+                NAMES.append(name)
 
-            env = ThreeBodyProblem_env()
-            env.settings['InitialConditions']['seed'] = seed
-            env.settings['Integration']['subfolder'] = subfolder
-            env.settings['Integration']['suffix'] = name
-            run_trajectory(env, action = i)
+                env.settings['InitialConditions']['seed'] = seeds[i]
+                env.settings['Integration']['subfolder'] = subfolder
+                env.settings['Integration']['suffix'] = name
+                env.settings['RL']['reward_f'] = reward_functions[r_i][0]
+                env.settings['RL']['weights'] = reward_functions[r_i][1:]
+                # run_trajectory(env, action = 'random')
+
+            for i in range(initializations): # same action per initialization
+                print(initializations + i)
+                name = 'R_%i_traj_initialization_%i'%(r_i, initializations +i)
+                NAMES.append(name)
+
+                env.settings['InitialConditions']['seed'] = seeds[i]
+                env.settings['Integration']['subfolder'] = subfolder
+                env.settings['Integration']['suffix'] = name
+                env.settings['RL']['reward_f'] = reward_functions[r_i][0]
+                env.settings['RL']['weights'] = reward_functions[r_i][1:]
+                act = np.random.randint(len(env.actions))
+                print(act)
+                # run_trajectory(env, action = act)
 
         # Load results
-        env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = subfolder
         STATE = []
         CONS = [] 
         TCOMP = []
-        for i in range(cases):
+        for i in range(len(NAMES)):
             env.settings['Integration']['suffix'] = NAMES[i]
             state, cons, tcomp = load_state_files(env)
             STATE.append(state)
             CONS.append(cons)
             TCOMP.append(tcomp)
 
-        env.close()
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards.png'
-        R = calculate_rewards(env, CONS)
-        plot_reward_comparison(STATE, CONS, TCOMP, NAMES, save_path, R) # TODO: plot
+        plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
+        save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards_multiple.png'
+        plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = False) 
 
     # TODO: code with plot for rewards
         

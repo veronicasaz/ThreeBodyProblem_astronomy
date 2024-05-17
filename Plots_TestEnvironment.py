@@ -47,15 +47,13 @@ def plot_initializations(state, cons, tcomp, names, save_path, seed):
     
     name_planets = (np.arange(np.shape(state)[1])+1).astype(str)
     steps = np.shape(cons)[1]
-    print(steps)
     for i, ax in enumerate(axes.flat):
         if i == 0:
             legend_on = True
         else:
             legend_on = False
-        plot_planets_trajectory(ax, state[i]/1.496e11, name_planets, labelsize = label_size, steps = steps, legend_on = legend_on)
+        plot_planets_trajectory(ax, state[i], name_planets, labelsize = label_size, steps = steps, legend_on = legend_on)
         ax.set_title("Seed = %i"%(seed[i]), fontsize = title_size)
-        
         ax.tick_params(axis='both', which='major', labelsize=label_size-4, labelrotation=0)
 
     plt.axis('equal')
@@ -107,11 +105,109 @@ def plot_reward_comparison(env, STATES, CONS, TCOMP, Titles, save_path, R):
     plt.savefig(save_path, dpi = 150)
     plt.show()
 
-###########################
-# TODOOO ##################
-###########################
 
 
+def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
+                          initializations, save_path, plot_one = False):
+    
+    labelsize = 12
+    cm = plt.cm.get_cmap('RdYlBu')    
+
+    def process_quantities(E, R, action):
+        x = E.flatten()
+        x2 = np.zeros(np.shape(E))
+        x2[1:,:] = -(np.log10(abs(E[1:, :]+1e-15)) - np.log10(abs(E[0:-1, :]+1e-15)))
+        x2 = x2.flatten()
+        y = R.flatten()
+
+        index = np.where(y == 0)[0]
+
+        x = np.delete(x, index)
+        x2 = np.delete(x2, index)
+        y = np.delete(y, index)
+
+        action = action.flatten()
+        action = np.delete(action, index)
+        z = np.zeros(len(action))
+        for i in range(len(action)):
+            z[i] = env.actions[int(action[i])]
+
+        print(len(x), len(y), len(z), len(x2))
+        return x, x2, y, z
+
+    if plot_one == True:
+        fig = plt.figure(figsize = (8,10))
+        gs1 = matplotlib.gridspec.GridSpec(2, 2, width_ratios=[1,0.05],
+                                    left=0.1, wspace=0.2, hspace = 0.2, right = 0.9,
+                                    top = 0.97, bottom = 0.08)
+
+        Energy_error, T_comp, R, action = calculate_errors(STATES[0:initializations], CONS[0:initializations], TCOMP[0:initializations])
+        ax = fig.add_subplot(gs1[0, 0]) 
+        ax2 = fig.add_subplot(gs1[1, 0]) 
+        AX = [[ax, ax2]]
+        ax.set_title(r'Type %i, $W_1 = %i$, $W_2 = %i$, $W_3 = %i$'%(reward_functions[0][0],\
+                                                                     reward_functions[0][1],\
+                                                                     reward_functions[0][2],\
+                                                                     reward_functions[0][3]),
+                                                                     fontsize = labelsize)
+        
+        x, x2, y, z = process_quantities(Energy_error, R, action)
+        sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+        ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+        ax.set_ylim([-100, 100])
+
+    else:     
+        fig = plt.figure(figsize = (13,15))
+        gs1 = matplotlib.gridspec.GridSpec(5, 3, width_ratios=[1,1,0.05],
+                                    left=0.1, wspace=0.4, hspace = 0.4, right = 0.9,
+                                    top = 0.97, bottom = 0.04)
+
+        Energy_error, T_comp, Reward, actions = calculate_errors(STATES, CONS, TCOMP)
+        AX = []
+        for r_i in range(len(reward_functions)):
+            ax = fig.add_subplot(gs1[r_i, 0]) 
+            ax2 = fig.add_subplot(gs1[r_i, 1]) 
+            AX.append([ax, ax2])
+            index_0 = r_i*initializations
+            print("=====================")
+            print(initializations, Energy_error[0:10, index_0:index_0+initializations])
+            x, x2, y, z = process_quantities(Energy_error[:, index_0:index_0+initializations], \
+                                             Reward[:, index_0:index_0+initializations], \
+                                             actions[:, index_0:index_0+initializations])
+            
+            sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+            ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+            ax.set_title(r'Type %i, $W_1 = %i$, $W_2 = %i$, $W_3 = %i$'%(reward_functions[r_i][0],\
+                                                                     reward_functions[r_i][1],\
+                                                                     reward_functions[r_i][2],\
+                                                                     reward_functions[r_i][3]),
+                                                                     fontsize = labelsize)
+        AX[0][0].set_ylim([-100, 100])
+        AX[1][0].set_ylim([-100, 100])
+        AX[2][0].set_ylim([-100, 200])
+    axbar = plt.subplot(gs1[:,-1]  )
+        
+
+    for a_i in range(len(AX)):
+        AX[a_i][0].set_xlabel(r'$\Delta E_i$',  fontsize = labelsize-1)
+        AX[a_i][1].set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize-1)
+        AX[a_i][0].set_ylabel(r'Reward ($R$)',  fontsize = labelsize-1)
+        AX[a_i][1].set_ylabel(r'Reward ($R$)',  fontsize = labelsize-1)
+        AX[a_i][0].set_xscale('log')
+        # AX[a_i][0].set_yscale('symlog', linthresh = 1e1)
+        AX[a_i][1].set_xscale('symlog', linthresh = 1e-3)
+        AX[a_i][1].set_yscale('symlog', linthresh = 1)
+    
+    
+    # AX[3][0].set_ylim([-200, 200])
+
+
+    cbar = fig.colorbar(sc, axbar)
+    cbar.set_label(r'Time step parameter ($\mu$)', fontsize = labelsize)
+    cbar.ax.tick_params(labelsize=labelsize)
+
+    plt.savefig(save_path, dpi = 100, layout = 'tight' )
+    plt.show()
 
 ###########################
 # TODOOO ##################
@@ -176,6 +272,7 @@ def plot_comparison_end(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_i
 
     plt.savefig(save_path, dpi = 150)
     plt.show()
+
 
 
 ###########################
