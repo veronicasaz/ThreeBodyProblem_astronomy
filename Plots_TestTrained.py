@@ -505,10 +505,10 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     ax2 = fig.add_subplot(gs1[0, 0])
     ax3 = fig.add_subplot(gs1[1, 1])
 
-    binsx = np.logspace(np.log10(5e-1),np.log10(0.8e1), 50)
+    binsx = np.logspace(np.log10(2e-2),np.log10(0.4), 50)
     binsy = np.logspace(np.log10(1e-14),np.log10(1e-1), 50)
 
-    order = [0, 1,2,3]
+    order = [3, 0,2, 1]
     alpha = [0.5, 0.5, 0.9, 0.9]
     plot_index = [0, 1, 3, 6]
     for i, index in enumerate(plot_index):
@@ -529,7 +529,70 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
 
     # ax1.set_xscale('log')
     # ax2.set_xscale('log')
-    # ax1.set_xlim([5e-1, 3])
+    ax1.set_xlim([2e-2, 0.4])
+    ax2.set_xlim([2e-2, 0.4])
+    ax1.set_ylim([1e-14, 1e1])
+    ax3.set_ylim([1e-14, 1e1])
+    # for ax in [ax1, ax2, ax3]:
+    #     ax.tick_params(axis='both', which='major', labelsize=labelsize)
+    
+    plt.savefig(save_path, dpi = 100)
+    plt.show()
+
+    
+def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
+    steps = len(TCOMP[0])
+    Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
+
+    # Group initializations per action type
+    types = len(TCOMP)//len(seeds)
+    X = []
+    Y = []
+    for i in range(types):
+        energy = Energy_error[1:, i*len(seeds):(i+1)*len(seeds)]
+        tcomp = T_comp[1:, i*len(seeds):(i+1)*len(seeds)]
+        tc = np.zeros(len(seeds))
+        en = np.zeros(len(seeds))
+        for j in range(len(seeds)):
+            index_last = np.nonzero(energy[:, j])[0][-1]
+            en[j] = energy[index_last, j]
+            tc[j] = np.sum(tcomp[0:index_last, j], axis = 0)       
+        X.append(en)
+        Y.append(tc)
+
+    fig = plt.figure(figsize = (6,6))
+    gs1 = matplotlib.gridspec.GridSpec(1, 1, figure = fig,
+                                       left=0.15, wspace=0.3, 
+                                       hspace = 0.2, right = 0.99,
+                                        top = 0.97, bottom = 0.11)
+    
+    msize = 50
+    alphavalue = 0.5
+    alphavalue2 = 0.9
+    markers = ['o', 'x', 's', 'o']
+    labels = []
+    for i in range(types):
+        labels.append(Titles[i*len(seeds)])
+
+    ax1 = fig.add_subplot(gs1[:, :]) 
+
+    order = [0, 1,2,3,4,5]
+    for i in range(types):
+        ax1.scatter(Y[i], X[i], color = colors[i//2], alpha = alphavalue, marker = markers[i%2],\
+                s = msize, label = labels[i], zorder =order[i])
+    
+    labelsize = 12
+    ax1.legend(fontsize = labelsize, loc = 'upper right')
+    ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
+    ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
+    ax1.set_yscale('log')
+    ax1.set_xscale('symlog', linthresh = 0.12)
+    # ax2.set_yscale('log')
+    # ax3.set_yscale('log')
+
+    # ax1.set_xscale('log')
+    # ax2.set_xscale('log')
+    ax1.set_xlim([0, 15])
     # ax2.set_xlim([5e-1, 3])
     # ax1.set_ylim([1e-14, 1e1])
     # ax3.set_ylim([1e-14, 1e1])
@@ -540,3 +603,75 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     plt.show()
 
     
+def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
+    steps = len(TCOMP[0])
+    Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
+    """
+    plot_int_comparison: compare different integrators
+    INPUTS:
+        I: list of integrators
+        steps: steps taken
+        ENV: list of environments used for each integration
+    """
+    fig = plt.figure(figsize = (10,14))
+    gs1 = matplotlib.gridspec.GridSpec(len(I)+2, 1, figure = fig, left=0.13, wspace=0.3, 
+                                       hspace = 0.5, right = 0.99,
+                                        top = 0.97, bottom = 0.11)
+
+    x_axis = np.arange(0, steps, 1)
+    labelsize = 16
+
+    if z == 0:
+        ax0 = fig.add_subplot(gs1[0, 0])
+        name_planets = np.arange(np.shape(state)[1]).astype(str) 
+        distance = plot_planets_distance(ax0, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+        ax0.set_yscale('log')
+        ax0.set_ylabel('Pair-wise \n distance (au)', fontsize = labelsize+1)
+        ax0.tick_params(axis='both', which='major', labelsize=labelsize)
+        AX.append(ax0)
+            
+        ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
+        ax1.set_title(I[z], fontsize = labelsize+3)
+        plot_actions_taken(ax1, x_axis, steps_taken)
+        ax1.set_ylim([-1, 6])
+        ax1.set_ylabel('Action taken', fontsize = labelsize+1)
+        ax1.set_yticks(np.arange(1, 6))
+        ax1.tick_params(axis='both', which='major', labelsize=labelsize)
+        AX.append(ax1)
+
+        # Plot energy errors
+        lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
+
+    ax2 = fig.add_subplot(gs1[-1, 0]) 
+    label = "Tstep parameter %.2E"%(env.actions[i])
+    linestyle = lines[i%len(lines)]
+    for z in range(len(ENV)):
+        plot_evolution(ax2, x_axis, ENERGY[z], label = I[z], colorindex = z, linestyle = linestyle, linewidth = 2.5)
+        
+    ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.4), \
+                       fancybox = True, ncol = 4, fontsize = labelsize+3)
+    ax2.set_ylabel('Energy error',  fontsize = labelsize+1)
+    ax2.tick_params(axis='both', which='major', labelsize=labelsize)
+    ax2.set_yscale('log')
+    ax2.set_xlabel("Steps",fontsize = labelsize+1)
+    AX.append(ax2)
+
+    #  Draw vertical lines for close encounters
+    X_vert = []
+    for D in distance:
+        index_x = np.where(D < 1)[0]
+        X_vert.append(index_x)
+    def flatten(xss):
+        return [x for xs in xss for x in xs]
+    X_vert = flatten(X_vert)
+    for ax_vert in AX[0:-1]:
+        for X_D in X_vert:
+            ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
+                        clip_on = False, alpha = 0.2, linestyle = '--')
+    for ax_vert in [AX[-1]]:
+        for X_D in X_vert:
+            ax_vert.axvline(x=X_D, ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
+                         clip_on = False, alpha = 0.2, linestyle = '--')
+    
+    plt.savefig(save_path, dpi = 100)
+    plt.show()

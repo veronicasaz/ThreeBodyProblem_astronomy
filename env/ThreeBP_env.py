@@ -284,7 +284,7 @@ class ThreeBodyProblem_env(gym.Env):
             g.parameters.dt_param = action
         elif integrator_type == "Ph4" or \
             integrator_type == "Huayno":
-            g.parameters.dt_param =  action
+            g.parameters.timestep_parameter =  action
         else:
             g.parameters.timestep = action | self.units_time
 
