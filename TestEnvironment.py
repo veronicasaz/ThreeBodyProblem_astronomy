@@ -30,7 +30,6 @@ def run_trajectory(env, action = 'RL', model_path = None):
     OUTPUTS:
         reward: reward for each step
     """
-    
     if model_path == None:
         model_path = env.settings['Training']['savemodel'] +'model_weights.pth'
         
@@ -45,7 +44,7 @@ def run_trajectory(env, action = 'RL', model_path = None):
         n_observations = env.observation_space_n
         neurons = env.settings['Training']['neurons']
         layers = env.settings['Training']['hidden_layers']
-
+        
         model = DQN(n_observations, n_actions, neurons, layers)
         model.load_state_dict(torch.load(model_path))
         model.eval()

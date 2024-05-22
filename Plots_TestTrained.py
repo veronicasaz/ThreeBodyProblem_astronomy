@@ -304,12 +304,12 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
         axis[case_i].set_ylabel('y (au)', fontsize = label_size)
 
     # Plot distance
-    x_axis = np.arange(1, steps)
-    distance = plot_planets_distance(ax3, x_axis, STATES[0][1:,:]/1.496e11, name_bodies,\
+    x_axis = np.arange(0, steps)
+    distance = plot_planets_distance(ax3, x_axis, STATES[0]/1.496e11, name_bodies,\
                                         steps = steps, labelsize = label_size)
 
     # Plot RL 
-    plot_actions_taken(ax4, x_axis, action[1:, 0])
+    plot_actions_taken(ax4, x_axis, action[:, 0])
     ax4.set_ylim([-1, env.settings['RL']['number_actions']+1])
     ax4.set_ylabel('Action taken', fontsize = label_size)
     ax4.set_yticks(np.arange(0, env.settings['RL']['number_actions']))
@@ -320,9 +320,9 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
             label = 'RL'
         else:
             label = r"$%i: \mu$ =%.2E"%(case, env.actions[case-1])
-        plot_evolution(ax5, x_axis, R[1:, case], label = Titles[case], \
+        plot_evolution(ax5, x_axis, R[:, case], label = Titles[case], \
                        colorindex = case, linestyle = linestyle[case], linewidth = linewidth)
-        plot_evolution(ax6, x_axis, Energy_error[1:, case], label = Titles[case], \
+        plot_evolution(ax6, x_axis, Energy_error[:, case], label = Titles[case], \
                        colorindex = case, linestyle = linestyle[case], linewidth = linewidth)
         
     ax6.set_xlabel('Step', fontsize = label_size)
@@ -620,19 +620,26 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
 
     x_axis = np.arange(0, steps, 1)
     labelsize = 16
+    AX = []
 
-    if z == 0:
-        ax0 = fig.add_subplot(gs1[0, 0])
-        name_planets = np.arange(np.shape(state)[1]).astype(str) 
-        distance = plot_planets_distance(ax0, x_axis, state[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
-        ax0.set_yscale('log')
-        ax0.set_ylabel('Pair-wise \n distance (au)', fontsize = labelsize+1)
-        ax0.tick_params(axis='both', which='major', labelsize=labelsize)
-        AX.append(ax0)
-            
+    ax0 = fig.add_subplot(gs1[0, 0])
+    name_planets = np.arange(np.shape(STATES)[1]).astype(str) 
+    distance = plot_planets_distance(ax0, x_axis, STATES[0]/1.496e11, name_planets, steps = steps, labelsize = labelsize)
+    ax0.set_yscale('log')
+    ax0.set_ylabel('Pair-wise \n distance (au)', fontsize = labelsize+1)
+    ax0.tick_params(axis='both', which='major', labelsize=labelsize)
+    AX.append(ax0)
+
+    ax2 = fig.add_subplot(gs1[-1, 0]) 
+    lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
+    linestyle = '-'
+
+
+    for z in range(len(I)):
         ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
         ax1.set_title(I[z], fontsize = labelsize+3)
-        plot_actions_taken(ax1, x_axis, steps_taken)
+        print(np.shape(x_axis), np.shape(action[:, z]))
+        plot_actions_taken(ax1, x_axis, action[:, z])
         ax1.set_ylim([-1, 6])
         ax1.set_ylabel('Action taken', fontsize = labelsize+1)
         ax1.set_yticks(np.arange(1, 6))
@@ -640,13 +647,7 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
         AX.append(ax1)
 
         # Plot energy errors
-        lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
-
-    ax2 = fig.add_subplot(gs1[-1, 0]) 
-    label = "Tstep parameter %.2E"%(env.actions[i])
-    linestyle = lines[i%len(lines)]
-    for z in range(len(ENV)):
-        plot_evolution(ax2, x_axis, ENERGY[z], label = I[z], colorindex = z, linestyle = linestyle, linewidth = 2.5)
+        plot_evolution(ax2, x_axis, Energy_error[:, z], label = I[z], colorindex = z, linestyle = linestyle, linewidth = 2.5)
         
     ax2.legend(loc='upper center', bbox_to_anchor=(0.5, -0.4), \
                        fancybox = True, ncol = 4, fontsize = labelsize+3)
