@@ -84,6 +84,7 @@ if __name__ == '__main__':
     elif experiment == 1: # run actions integrators
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '6_Comparison_integrators/'
+        env.settings['InitialConditions']['seed'] = 0
 
         # Run final energy vs computation time for different cases
         initializations = 100
@@ -92,21 +93,21 @@ if __name__ == '__main__':
         NAMES = []
         TITLES = []
         I = ['Hermite', 'Huayno', 'Symple']
+        model = 2090
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
 
         for integrat in range(len(I)):
             env = ThreeBodyProblem_env()
-            env.settings['Integration']['subfolder'] = '6_ComparableActions_integrators/'
+            env.settings['Integration']['subfolder'] = '6_Comparison_integrators/'
             env.settings['Integration']['integrator'] = I[integrat]
+            env.settings['InitialConditions']['seed'] = 0
             env._initialize_RL() # redo to adapt actions to integrator
-            for ini in range(initializations):
-                print(I[integrat], ini, env.actions)
-                index_0 = 0
-                name = '%s_seed%i_action%i'%(I[integrat], seeds[ini], index_0)
-                NAMES.append(name)
-                TITLES.append(r"%s: $\mu$ = %.1E"%(I[integrat], env.actions[index_0]))
-                env.settings['Integration']['suffix'] = name
-                env.settings['InitialConditions']['seed'] = seeds[ini]
-                run_trajectory(env, action = index_0)
+            print(I[integrat])
+            name = '%s_seed%i_action RL'%(I[integrat], env.settings['InitialConditions']['seed'])
+            NAMES.append(name)
+            TITLES.append(r"%s"%(I[integrat]))
+            env.settings['Integration']['suffix'] = name
+            # run_trajectory(env, action = 'RL', model_path=model_path)
 
         STATE = []
         CONS = []

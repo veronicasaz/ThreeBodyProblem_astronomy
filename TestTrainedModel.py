@@ -16,7 +16,7 @@ import torchvision.models as models
 import gym
 
 from env.ThreeBP_env import ThreeBodyProblem_env
-from TrainRL import train_net
+from TrainRL import train_net, train_net_pretrained
 from TestEnvironment import run_trajectory, load_state_files
 from Plots_TestTrained import plot_reward, plot_balance, plot_test_reward,\
     plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp
@@ -83,7 +83,7 @@ def load_reward(a, suffix = ''):
     return score, EnergyE, HuberLoss, tcomp, testReward
 
 if __name__ == '__main__':
-    experiment = 3 # number of the experiment to be run
+    experiment = 1 # number of the experiment to be run
     seed = 0
 
     if experiment == 0: # Create testing dataset
@@ -93,7 +93,16 @@ if __name__ == '__main__':
         create_testing_dataset(env, seeds)
 
     elif experiment == 1: # Train
-        train_net()
+        # train_net()
+
+
+        model = 2090
+        env = ThreeBodyProblem_env()
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
+        # env.settings['Training']['max_episodes'] = 100
+        # env.settings['Training']['max_episodes'] = 100
+        # env.settings['Training']['lr'] = 1e-5
+        train_net_pretrained(model_path, env = env)
 
     elif experiment == 2:
         # Plot training results
@@ -105,7 +114,7 @@ if __name__ == '__main__':
         plot_test_reward(env, testReward)
         
     elif experiment == 3: 
-        model = 2090
+        model = 80
         
         seeds = np.arange(5)
         # Plot evolution for all actions, one initialization
@@ -152,7 +161,8 @@ if __name__ == '__main__':
         NAMES = []
         TITLES = []
 
-        RL_models = ['2080', '2090', '2100', '2110', '2120']
+        # RL_models = ['2080', '2090', '2100', '2110', '2120']
+        RL_models = ['2090', '80', '490']
         for act in range(len(RL_models)):
             NAMES.append('_actionRL_'+ str(RL_models[act]))
             TITLES.append(r"RL-variable $\mu$ " + RL_models[act])
@@ -187,12 +197,13 @@ if __name__ == '__main__':
         TITLES = []
 
         # RL
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(490) +'.pth'
         for ini in range(initializations):
             NAMES.append('_actionRL_seed%i'%seeds[ini])
             TITLES.append(r"RL-variable $\mu$, seed %i"%seeds[ini])
             env.settings['Integration']['suffix'] = NAMES[ini]
             env.settings['InitialConditions']['seed'] = seeds[ini]
-            # run_trajectory(env, action = 'RL')
+            run_trajectory(env, action = 'RL', model_path = model_path)
 
         for act in range(env.settings['RL']['number_actions']):
             for ini in range(initializations):

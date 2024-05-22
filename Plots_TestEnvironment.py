@@ -30,7 +30,7 @@ def calculate_errors(states, cons, tcomp):
     for i in range(cases):
         R[1:, i] = cons[i][1:steps, 1]
         E[1:, i] = abs(cons[i][1:steps, 2]) # absolute relative energy error
-        T_c[1:, i] = np.cumsum(tcomp[i][1:steps]) # add individual computation times
+        T_c[1:, i] = tcomp[i][1:steps] # add individual computation times
         Action[1:, i] = cons[i][1:steps, 0]
 
     return E, T_c, R, Action
