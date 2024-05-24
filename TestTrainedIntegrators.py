@@ -16,7 +16,7 @@ import torchvision.models as models
 import gym
 
 from env.ThreeBP_env import ThreeBodyProblem_env
-from TrainRL import train_net
+from TrainRL import train_net, train_net_pretrained
 from TestEnvironment import run_trajectory, load_state_files
 from Plots_TestTrained import plot_test_reward,\
     plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp, \
@@ -25,7 +25,7 @@ from TestTrainedModel import load_reward
 
 
 if __name__ == '__main__':
-    experiment = 1 # number of the experiment to be run
+    experiment = 6 # number of the experiment to be run
     seed = 0
 
     ################################
@@ -45,6 +45,7 @@ if __name__ == '__main__':
             env = ThreeBodyProblem_env()
             env.settings['Integration']['subfolder'] = '6_ComparableActions_integrators/'
             env.settings['Integration']['integrator'] = I[integrat]
+            env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
             env._initialize_RL() # redo to adapt actions to integrator
             for ini in range(initializations):
                 print(I[integrat], ini, env.actions)
@@ -54,6 +55,7 @@ if __name__ == '__main__':
                 TITLES.append(r"%s: $\mu$ = %.1E"%(I[integrat], env.actions[index_0]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
+                env.settings['Integration']['max_steps'] = 100
                 # run_trajectory(env, action = index_0)
             
             for ini in range(initializations):
@@ -63,6 +65,7 @@ if __name__ == '__main__':
                 TITLES.append(r"%s: $\mu$ = %.1E"%(I[integrat], env.actions[index_1]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
+                env.settings['Integration']['max_steps'] = 100
                 # run_trajectory(env, action = index_1)
 
 
@@ -84,30 +87,29 @@ if __name__ == '__main__':
     elif experiment == 1: # run actions integrators
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '6_Comparison_integrators/'
-        env.settings['InitialConditions']['seed'] = 0
+        env.settings['InitialConditions']['seed'] = 1
 
         # Run final energy vs computation time for different cases
-        initializations = 100
-        seeds = np.arange(initializations)
 
         NAMES = []
         TITLES = []
         I = ['Hermite', 'Huayno', 'Symple']
-        model = 2090
-        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
+        model = '270_good'
+        model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
 
         for integrat in range(len(I)):
             env = ThreeBodyProblem_env()
             env.settings['Integration']['subfolder'] = '6_Comparison_integrators/'
             env.settings['Integration']['integrator'] = I[integrat]
-            env.settings['InitialConditions']['seed'] = 0
+            env.settings['InitialConditions']['seed'] = 1
+            env.settings['Integration']['max_steps'] = 150
+            env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
             env._initialize_RL() # redo to adapt actions to integrator
-            print(I[integrat])
             name = '%s_seed%i_action RL'%(I[integrat], env.settings['InitialConditions']['seed'])
             NAMES.append(name)
             TITLES.append(r"%s"%(I[integrat]))
             env.settings['Integration']['suffix'] = name
-            # run_trajectory(env, action = 'RL', model_path=model_path)
+            run_trajectory(env, action = 'RL', model_path=model_path)
 
         STATE = []
         CONS = []
@@ -130,26 +132,35 @@ if __name__ == '__main__':
     elif experiment == 2: # Train symple
         env = ThreeBodyProblem_env()
         env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
-        env.settings['Integration']['integrator'] = 'Symple/'
-        train_net()
+        env.settings['Integration']['integrator'] = 'Symple'
+        env._initialize_RL()
+        
+        # train_net()
+
+        model = '2090_good'
+        # env = ThreeBodyProblem_env()
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
+        train_net_pretrained(model_path, env = env)
 
     elif experiment == 3:
         # Plot training results
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/Symple/' 
-        env.settings['Integration']['integrator'] = 'Symple/'
+        env.settings['Integration']['integrator'] = 'Symple'
+        env._initialize_RL()
         reward, EnergyError, HuberLoss, tcomp, testReward = load_reward(env, suffix = '')
         plot_test_reward(env, testReward)
     
     elif experiment == 4: 
-        model = 100
+        model = '100'
         
         seeds = np.arange(5)
         # Plot evolution for all actions, one initialization
         for i in range(len(seeds)):
             env = ThreeBodyProblem_env()
             env.settings['Integration']['subfolder'] = '7_AllActionsRL_Symple/'
-            env.settings['Integration']['integrator'] = 'Symple/'
+            env.settings['Integration']['integrator'] = 'Symple'
+            env._initialize_RL()
 
             NAMES = []
             TITLES = []
@@ -157,9 +168,9 @@ if __name__ == '__main__':
             TITLES.append(r"RL-variable $\mu$")
             env.settings['Integration']['suffix'] = NAMES[0]
             env.settings['InitialConditions']['seed'] = seeds[i]
-            env.settings['Integration']['max_steps'] = 300
+            env.settings['Integration']['max_steps'] = 150
 
-            model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
+            model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
             
             for act in range(env.settings['RL']['number_actions']):
@@ -186,7 +197,8 @@ if __name__ == '__main__':
         # Plot evolution for many RL models
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '8_ManyRLmodelsRL_Symple/'
-        env.settings['Integration']['integrator'] = 'Symple/'
+        env.settings['Integration']['integrator'] = 'Symple'
+        env._initialize_RL()
 
         NAMES = []
         TITLES = []
@@ -216,16 +228,19 @@ if __name__ == '__main__':
 
     elif experiment == 6:
         # Run final energy vs computation time for different cases
-        initializations = 500
+        initializations = 30
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
         
         env.settings['Integration']['subfolder'] = '9_EvsTcomp_Symple/'
         env.settings['Integration']['integrator'] = 'Symple'
+        env._initialize_RL()
 
         NAMES = []
         TITLES = []
+        model = '24_good'
+        model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
 
         # RL
         for ini in range(initializations):
@@ -233,7 +248,8 @@ if __name__ == '__main__':
             TITLES.append(r"RL-variable $\mu$, seed %i"%seeds[ini])
             env.settings['Integration']['suffix'] = NAMES[ini]
             env.settings['InitialConditions']['seed'] = seeds[ini]
-            run_trajectory(env, action = 'RL')
+            env.settings['Integration']['max_steps'] = 500
+            # run_trajectory(env, action = 'RL', model_path = model_path)
 
         for act in range(env.settings['RL']['number_actions']):
             for ini in range(initializations):
@@ -242,7 +258,8 @@ if __name__ == '__main__':
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
-                # run_trajectory(env, action = act)
+                env.settings['Integration']['max_steps'] = 500
+                run_trajectory(env, action = act)
 
         STATE = []
         CONS = []

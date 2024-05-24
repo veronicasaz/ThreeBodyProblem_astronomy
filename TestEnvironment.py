@@ -101,7 +101,7 @@ def calculate_rewards(env, cons, W):
     return R
 
 if __name__ == '__main__':
-    experiment = 0 # number of the experiment to be run
+    experiment = 1 # number of the experiment to be run
     seed = 1
             
     if experiment == 0: #  plot trajectory with hermite for a fixed action, many initializations
@@ -148,8 +148,8 @@ if __name__ == '__main__':
         seeds = np.arange(initializations)
         subfolder = "2_RewardStudy/"
         reward_functions = [
-                [0, 1.0, 10.0, 4.0],
-                [0, 10.0, 100.0, 4.0],
+                [0, 10.0, 50.0, 4.0],
+                [0, 1.0, 100.0, 4.0],
                 [1, 10.0, 100.0, 10.0],
                 [2, 10.0, 100.0, 4.0],
                 [3, 10.0, 0, 4.0]]
@@ -197,7 +197,7 @@ if __name__ == '__main__':
             TCOMP.append(tcomp)
 
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards.png'
-        plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
+        # plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards_multiple.png'
         plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = False) 
 

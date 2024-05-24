@@ -3,6 +3,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import torch
 
+import random
 from scipy.signal import savgol_filter
 from Plots_TestEnvironment import calculate_errors
 from PlotsFunctions import plot_planets_trajectory, plot_evolution, \
@@ -77,8 +78,9 @@ def plot_reward(a, reward, Eerror, HuberLoss):
         
     x_all = np.arange(len(reward_flat))
     
-    f, ax = plt.subplots(4, 1, figsize = (10,6))
-    plt.subplots_adjust(left=0.19, right=0.97, top=0.96, bottom=0.15, hspace = 0.3)
+    f, ax = plt.subplots(4, 1, figsize = (8,6))
+    plt.subplots_adjust(left=0.07, right=0.97, top=0.95, \
+                        bottom=0.1, hspace = 1.2)
     fontsize = 18
 
     def filter(x, y):
@@ -94,14 +96,14 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     ax[0].plot(x_episodes, y, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(y), pts, 1)    
     ax[0].plot(x_episodes, yy, color = 'black')
-    ax[0].set_ylabel(r'Cumul $R$/episode', fontsize = fontsize)
+    ax[0].set_title(r'Cumul $R$/episode', fontsize = fontsize)
 
     # y = avg_reward_perepisode
     y = avg_reward_perepisode
     ax[1].plot(x_episodes,y, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(y), pts, 1)
     ax[1].plot(x_episodes, yy, color = 'black')
-    ax[1].set_ylabel(r'Avg $R$/episode', fontsize = fontsize)
+    ax[1].set_title(r'Avg $R$/episode', fontsize = fontsize)
     # ax[1].set_yscale('symlog', linthresh = 1e1)
 
     y = avg_energy_perepisode
@@ -110,29 +112,30 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     # ax[2].plot(x_all, y, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(y), pts, 1)
     ax[2].plot(x_episodes, yy, color = 'black')
-    ax[2].set_ylabel(r'Slope $\Delta E/episode$', fontsize = fontsize)
+    ax[2].set_title(r'Slope $\Delta E/episode$', fontsize = fontsize)
     ax[2].set_yscale('log')
 
     y = last_energy_perepisode
     ax[3].plot(x_episodes, y, color = colors[0], alpha = 1)
     yy = savgol_filter(np.ravel(y), pts, 1)
     ax[3].plot(x_episodes, yy, color = 'black')
-    ax[3].set_ylabel(r'Final $\Delta E/episode$', fontsize = fontsize)
+    ax[3].set_title(r'Final $\Delta E/episode$', fontsize = fontsize)
     ax[3].set_yscale('log')
 
     for ax_i in ax: 
         ax_i.tick_params(axis='x', labelsize=fontsize-5)
         ax_i.tick_params(axis='y', labelsize=fontsize-5)
 
-    ax[-1].set_xlabel('Episode', fontsize = fontsize)
+    ax[-1].set_xlabel('Episode', fontsize = fontsize-2)
     
     path = a.settings['Integration']['savefile'] + a.settings['Integration']['subfolder']
     plt.savefig(path + 'cumulative_reward.png', dpi = 100)
     plt.show()
 
 def plot_test_reward(a, test_reward):
-    f, ax = plt.subplots(4, 1, figsize = (10,6))
-    plt.subplots_adjust(left=0.19, right=0.97, top=0.96, bottom=0.15, hspace = 0.3)
+    f, ax = plt.subplots(4, 1, figsize = (10,10))
+    plt.subplots_adjust(left=0.08, right=0.97, top=0.96, \
+                        bottom=0.1, hspace = 0.8)
     fontsize = 18
 
     def filter(x, y):
@@ -199,21 +202,42 @@ def plot_test_reward(a, test_reward):
     index, value = maxN(y[0], 5) 
     print("=============")
     print(index, value)
-    ax[0].scatter(index, value, s = 500, marker = 'x', c = 'red')
+    for i in range(len(index)):
+        ax[0].plot([index[i], index[i]], \
+                   [10*min(np.array(REWARD_avg)-np.array(REWARD_std)),\
+                    value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
     
     for ax_i in ax: 
-        ax_i.tick_params(axis='x', labelsize=fontsize-5)
-        ax_i.tick_params(axis='y', labelsize=fontsize-5)
+        ax_i.tick_params(axis='both', which='major', labelsize=fontsize-3)
+        ax_i.tick_params(axis='y', labelsize=fontsize-3)
 
     ax[-1].set_xlabel('Episode', fontsize = fontsize)
-    ax[0].set_ylabel('R', fontsize = fontsize)
-    ax[1].set_ylabel(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
-    ax[2].set_ylabel(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
-    ax[3].set_ylabel(r'$T comp$ (s)', fontsize = fontsize)
+    ax[0].set_title('R', fontsize = fontsize)
+    ax[1].set_title(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
+    ax[2].set_title(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
+    ax[3].set_title(r'$T_{comp}$ (s)', fontsize = fontsize)
     ax[2].set_yscale('symlog', linthresh = 1e-1)
     ax[3].set_yscale('log')
 
-    # ax[1].set_yscale('log')
+    # For hermite 1
+    ax[0].set_ylim([-10, 2])
+    ax[1].set_ylim([-12, -2])
+    ax[2].set_ylim([-15, -0.5])
+    ax[3].set_ylim([0.0001, 0.003])
+
+    # For hermite 2
+    # ax[0].set_ylim([-10, 4])
+    # ax[1].set_ylim([-10, 0])
+    # ax[2].set_ylim([-15, -0.5])
+    # ax[3].set_ylim([0.0001, 0.003])
+
+
+    # For symple 2
+    # ax[0].set_ylim([-30, 5])
+    # ax[1].set_ylim([-12, 5])
+    # ax[2].set_ylim([-30, -0.8])
+    # ax[3].set_ylim([0.0001, 0.05])
+
     
     path = a.settings['Integration']['savefile'] + a.settings['Integration']['subfolder']
     plt.savefig(path + 'test_reward.png', dpi = 100)
@@ -487,16 +511,16 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
         X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
         Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
 
-    fig = plt.figure(figsize = (6,6))
+    fig = plt.figure(figsize = (8,8))
     gs1 = matplotlib.gridspec.GridSpec(2, 2, figure = fig, width_ratios = (3, 1), height_ratios = (1, 3), \
-                                       left=0.15, wspace=0.3, 
+                                       left=0.18, wspace=0.4, 
                                        hspace = 0.2, right = 0.99,
                                         top = 0.97, bottom = 0.11)
     
-    msize = 50
+    msize = 30
     alphavalue = 0.5
     alphavalue2 = 0.9
-    markers = ['o', 'x', 's', 'o']
+    markers = ['s', 'o', 'x', 's', 'o']
     labels = ['RL']
     for i in range(types-1):
         labels.append(r'$\mu$ = %.1E'%env.actions[i])
@@ -505,36 +529,50 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     ax2 = fig.add_subplot(gs1[0, 0])
     ax3 = fig.add_subplot(gs1[1, 1])
 
-    binsx = np.logspace(np.log10(2e-2),np.log10(0.4), 50)
-    binsy = np.logspace(np.log10(1e-14),np.log10(1e-1), 50)
+    # For hermite
+    # binsx = np.logspace(np.log10(2e-2),np.log10(0.4), 50)
+    # binsy = np.logspace(np.log10(1e-14),np.log10(1e-1), 50)
 
-    order = [3, 0,2, 1]
+    binsx = np.logspace(np.log10(2e-2),np.log10(10.0), 50)
+    binsy = np.logspace(np.log10(1e-14),np.log10(1e4), 50)
+
+    order = [3, 1,0, 2]
     alpha = [0.5, 0.5, 0.9, 0.9]
     plot_index = [0, 1, 3, 6]
+    dots_to_plot = 300
     for i, index in enumerate(plot_index):
-        ax1.scatter(Y[index], X[index], color = colors[i], alpha = alphavalue, marker = markers[i],\
+        ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\
                 s = msize, label = labels[index], zorder =order[i])
-        ax2.hist(Y[index], bins = binsx, color = colors[i],  alpha = alpha[i], edgecolor=colors[i], \
+        ax2.hist(Y[index][0:dots_to_plot], bins = binsx, color = colors[i],  alpha = alpha[i], edgecolor=colors[i], \
                  linewidth=1.2, zorder =order[i])
-        ax3.hist(X[index], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
+        ax3.hist(X[index][0:dots_to_plot], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
                  edgecolor=colors[i], linewidth=1.2, zorder =order[i])
     
-    labelsize = 12
-    ax1.legend(fontsize = labelsize)
+    labelsize = 17
+    ax1.legend(fontsize = labelsize-3)
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
     ax2.set_yscale('log')
     ax3.set_yscale('log')
 
-    # ax1.set_xscale('log')
-    # ax2.set_xscale('log')
-    ax1.set_xlim([2e-2, 0.4])
-    ax2.set_xlim([2e-2, 0.4])
-    ax1.set_ylim([1e-14, 1e1])
-    ax3.set_ylim([1e-14, 1e1])
-    # for ax in [ax1, ax2, ax3]:
-    #     ax.tick_params(axis='both', which='major', labelsize=labelsize)
+    ax1.set_xscale('log')
+    ax2.set_xscale('log')
+
+    # For hermite
+    # ax1.set_xlim([2e-2, 0.4])
+    # ax1.set_ylim([1e-14, 1e0])
+    # ax2.set_xlim([2e-2, 0.4])
+    # ax3.set_ylim([1e-14, 1e1])
+
+    # For symple
+    # ax1.set_xlim([2e-2, 0.4])
+    # ax1.set_ylim([1e-14, 1e0])
+    # ax2.set_xlim([2e-2, 0.4])
+    # ax3.set_ylim([1e-14, 1e1])
+
+    for ax in [ax1, ax2, ax3]:
+        ax.tick_params(axis='both', which='major', labelsize=labelsize-2)
     
     plt.savefig(save_path, dpi = 100)
     plt.show()
@@ -562,13 +600,15 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
 
     fig = plt.figure(figsize = (6,6))
     gs1 = matplotlib.gridspec.GridSpec(1, 1, figure = fig,
-                                       left=0.15, wspace=0.3, 
-                                       hspace = 0.2, right = 0.99,
+                                       left=0.18, wspace=0.3, 
+                                       hspace = 0.2, right = 0.97,
                                         top = 0.97, bottom = 0.11)
     
-    msize = 50
+    msize = 40
     alphavalue = 0.5
     alphavalue2 = 0.9
+    labelsize = 17
+
     markers = ['o', 'x', 's', 'o']
     labels = []
     for i in range(types):
@@ -581,23 +621,18 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
         ax1.scatter(Y[i], X[i], color = colors[i//2], alpha = alphavalue, marker = markers[i%2],\
                 s = msize, label = labels[i], zorder =order[i])
     
-    labelsize = 12
-    ax1.legend(fontsize = labelsize, loc = 'upper right')
+    ax1.legend(fontsize = labelsize-4, loc = 'upper right')
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
-    ax1.set_xscale('symlog', linthresh = 0.12)
+    # ax1.set_xscale('symlog', linthresh = 0.12)
+    ax1.tick_params(axis='both', which='major', labelsize=labelsize-2)
     # ax2.set_yscale('log')
     # ax3.set_yscale('log')
 
-    # ax1.set_xscale('log')
-    # ax2.set_xscale('log')
-    ax1.set_xlim([0, 15])
-    # ax2.set_xlim([5e-1, 3])
-    # ax1.set_ylim([1e-14, 1e1])
-    # ax3.set_ylim([1e-14, 1e1])
-    # for ax in [ax1, ax2, ax3]:
-    #     ax.tick_params(axis='both', which='major', labelsize=labelsize)
+    ax1.set_xscale('log')
+    ax1.set_xlim([0.028, 1.0])
+    ax1.set_ylim([1e-14, 1e5])
     
     plt.savefig(save_path, dpi = 100)
     plt.show()
@@ -642,7 +677,7 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
         plot_actions_taken(ax1, x_axis, action[:, z])
         ax1.set_ylim([-1, 6])
         ax1.set_ylabel('Action taken', fontsize = labelsize+1)
-        ax1.set_yticks(np.arange(1, 6))
+        ax1.set_yticks(np.arange(0, 6))
         ax1.tick_params(axis='both', which='major', labelsize=labelsize)
         AX.append(ax1)
 

@@ -461,6 +461,7 @@ def train_net_pretrained(model_path, env = None, suffix = ''):
     save_huberloss = list()
     save_tcomp = list()
     save_test_reward = list()
+    max_reward = -10000 # small number
 
     # Training loop
     while episode_number <= env.settings['Training']['max_episodes']:
@@ -533,6 +534,14 @@ def train_net_pretrained(model_path, env = None, suffix = ''):
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
         else:
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights.pth') # save model
+
+        # Save model if reward is max
+        avg_reward = np.mean(save_reward_list)
+        print("reward", episode_number, avg_reward, max_reward, (max_reward*(1 -abs(max_reward)/max_reward*0.3)))
+
+        if avg_reward >= (max_reward*(1 -abs(max_reward)/max_reward*0.3)): # save all models with high rewards
+            torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
+            max_reward = avg_reward
 
         # save training
         with open(env.settings['Training']['savemodel']+suffix+"rewards.txt", "w") as f:

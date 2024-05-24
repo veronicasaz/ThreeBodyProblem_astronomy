@@ -110,7 +110,7 @@ def plot_reward_comparison(env, STATES, CONS, TCOMP, Titles, save_path, R):
 def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
                           initializations, save_path, plot_one = False):
     
-    labelsize = 12
+    labelsize = 16
     cm = plt.cm.get_cmap('RdYlBu')    
 
     def process_quantities(E, R, action):
@@ -136,10 +136,10 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
         return x, x2, y, z
 
     if plot_one == True:
-        fig = plt.figure(figsize = (8,10))
+        fig = plt.figure(figsize = (9,10))
         gs1 = matplotlib.gridspec.GridSpec(2, 2, width_ratios=[1,0.05],
-                                    left=0.1, wspace=0.2, hspace = 0.2, right = 0.9,
-                                    top = 0.97, bottom = 0.08)
+                                    left=0.12, wspace=0.1, hspace = 0.2, right = 0.88,
+                                    top = 0.96, bottom = 0.08)
 
         Energy_error, T_comp, R, action = calculate_errors(STATES[0:initializations], CONS[0:initializations], TCOMP[0:initializations])
         ax = fig.add_subplot(gs1[0, 0]) 
@@ -149,7 +149,7 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
                                                                      reward_functions[0][1],\
                                                                      reward_functions[0][2],\
                                                                      reward_functions[0][3]),
-                                                                     fontsize = labelsize)
+                                                                     fontsize = labelsize+1)
         
         x, x2, y, z = process_quantities(Energy_error, R, action)
         sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
@@ -157,16 +157,16 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
         ax.set_ylim([-100, 100])
 
     else:     
-        fig = plt.figure(figsize = (13,15))
-        gs1 = matplotlib.gridspec.GridSpec(5, 3, width_ratios=[1,1,0.05],
+        fig = plt.figure(figsize = (15,17))
+        gs1 = matplotlib.gridspec.GridSpec(4, 3, width_ratios=[1,1,0.05],
                                     left=0.1, wspace=0.4, hspace = 0.4, right = 0.9,
                                     top = 0.97, bottom = 0.04)
 
         Energy_error, T_comp, Reward, actions = calculate_errors(STATES, CONS, TCOMP)
         AX = []
-        for r_i in range(len(reward_functions)):
-            ax = fig.add_subplot(gs1[r_i, 0]) 
-            ax2 = fig.add_subplot(gs1[r_i, 1]) 
+        for r_i in range(1, len(reward_functions)):
+            ax = fig.add_subplot(gs1[r_i-1, 0]) 
+            ax2 = fig.add_subplot(gs1[r_i-1, 1]) 
             AX.append([ax, ax2])
             index_0 = r_i*initializations
             print("=====================")
@@ -189,21 +189,23 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
         
 
     for a_i in range(len(AX)):
-        AX[a_i][0].set_xlabel(r'$\Delta E_i$',  fontsize = labelsize-1)
-        AX[a_i][1].set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize-1)
-        AX[a_i][0].set_ylabel(r'Reward ($R$)',  fontsize = labelsize-1)
-        AX[a_i][1].set_ylabel(r'Reward ($R$)',  fontsize = labelsize-1)
+        AX[a_i][0].set_xlabel(r'$\Delta E_i$',  fontsize = labelsize+2)
+        AX[a_i][1].set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize+2)
+        AX[a_i][0].set_ylabel(r'Reward ($R$)',  fontsize = labelsize+2)
+        AX[a_i][1].set_ylabel(r'Reward ($R$)',  fontsize = labelsize+2)
         AX[a_i][0].set_xscale('log')
         # AX[a_i][0].set_yscale('symlog', linthresh = 1e1)
         AX[a_i][1].set_xscale('symlog', linthresh = 1e-3)
         AX[a_i][1].set_yscale('symlog', linthresh = 1)
+        AX[a_i][0].tick_params(axis='both', which='major', labelsize=labelsize-2)
+        AX[a_i][1].tick_params(axis='both', which='major', labelsize=labelsize-2)
     
     
     # AX[3][0].set_ylim([-200, 200])
 
 
     cbar = fig.colorbar(sc, axbar)
-    cbar.set_label(r'Time step parameter ($\mu$)', fontsize = labelsize)
+    cbar.set_label(r'Time step parameter ($\mu$)', fontsize = labelsize+1)
     cbar.ax.tick_params(labelsize=labelsize)
 
     plt.savefig(save_path, dpi = 100, layout = 'tight' )
