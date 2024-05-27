@@ -143,12 +143,12 @@ if __name__ == '__main__':
     
 
     elif experiment == 1: # multiple reward functions
-        steps = 100
-        initializations = 20
+        steps = 150
+        initializations = 30
         seeds = np.arange(initializations)
         subfolder = "2_RewardStudy/"
         reward_functions = [
-                [0, 10.0, 50.0, 4.0],
+                [0, 1000.0, 50.0, 4.0],
                 [0, 1.0, 100.0, 4.0],
                 [1, 10.0, 100.0, 10.0],
                 [2, 10.0, 100.0, 4.0],
@@ -168,7 +168,8 @@ if __name__ == '__main__':
                 env.settings['Integration']['suffix'] = name
                 env.settings['RL']['reward_f'] = reward_functions[r_i][0]
                 env.settings['RL']['weights'] = reward_functions[r_i][1:]
-                # run_trajectory(env, action = 'random')
+                env._initialize_RL()
+                run_trajectory(env, action = 'random')
 
             for i in range(initializations): # same action per initialization
                 print(initializations + i)
@@ -182,7 +183,9 @@ if __name__ == '__main__':
                 env.settings['RL']['weights'] = reward_functions[r_i][1:]
                 act = np.random.randint(len(env.actions))
                 print(act)
-                # run_trajectory(env, action = act)
+                env._initialize_RL()
+                run_trajectory(env, action = act)
+
 
         # Load results
         env.settings['Integration']['subfolder'] = subfolder
@@ -197,7 +200,7 @@ if __name__ == '__main__':
             TCOMP.append(tcomp)
 
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards.png'
-        # plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
+        plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards_multiple.png'
         plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = False) 
 
