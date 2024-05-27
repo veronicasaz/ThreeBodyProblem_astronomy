@@ -83,7 +83,7 @@ def load_reward(a, suffix = ''):
     return score, EnergyE, HuberLoss, tcomp, testReward
 
 if __name__ == '__main__':
-    experiment = 1 # number of the experiment to be run
+    experiment = 3 # number of the experiment to be run
     seed = 0
 
     if experiment == 0: # Create testing dataset
@@ -93,16 +93,16 @@ if __name__ == '__main__':
         create_testing_dataset(env, seeds)
 
     elif experiment == 1: # Train
-        # train_net()
+        train_net()
 
 
-        model = 2090
+        model = '2090_good'
         env = ThreeBodyProblem_env()
-        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
         # env.settings['Training']['max_episodes'] = 100
         # env.settings['Training']['max_episodes'] = 100
         # env.settings['Training']['lr'] = 1e-5
-        train_net_pretrained(model_path, env = env)
+        # train_net_pretrained(model_path, env = env)
 
     elif experiment == 2:
         # Plot training results
@@ -114,9 +114,10 @@ if __name__ == '__main__':
         plot_test_reward(env, testReward)
         
     elif experiment == 3: 
-        model = 80
+        # model = '270_good'
+        model = '250'
         
-        seeds = np.arange(5)
+        seeds = np.arange(8)
         # Plot evolution for all actions, one initialization
         for i in range(len(seeds)):
             env = ThreeBodyProblem_env()
@@ -130,7 +131,7 @@ if __name__ == '__main__':
             env.settings['InitialConditions']['seed'] = seeds[i]
             env.settings['Integration']['max_steps'] = 300
 
-            model_path = env.settings['Training']['savemodel'] +'model_weights' +str(model) +'.pth'
+            model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
             
             for act in range(env.settings['RL']['number_actions']):
@@ -157,17 +158,18 @@ if __name__ == '__main__':
         # Plot evolution for many RL models
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '4_ManyRLmodelsRL/'
+        env.settings['InitialConditions']['seed'] = 5
 
         NAMES = []
         TITLES = []
 
         # RL_models = ['2080', '2090', '2100', '2110', '2120']
-        RL_models = ['2090', '80', '490']
+        RL_models = ['80_good', '270_good', '490_good', '2090_good']
         for act in range(len(RL_models)):
             NAMES.append('_actionRL_'+ str(RL_models[act]))
             TITLES.append(r"RL-variable $\mu$ " + RL_models[act])
             env.settings['Integration']['suffix'] = NAMES[act]
-            env.settings['Integration']['max_steps'] = 300
+            env.settings['Integration']['max_steps'] = 150
             model_path = env.settings['Training']['savemodel'] +'model_weights' +str(RL_models[act]) +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
 
@@ -187,7 +189,9 @@ if __name__ == '__main__':
 
     elif experiment == 5:
         # Run final energy vs computation time for different cases
-        initializations = 500
+        initializations = 300
+        model=  '270_good'
+        # model = '80_good'
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
@@ -197,13 +201,14 @@ if __name__ == '__main__':
         TITLES = []
 
         # RL
-        model_path = env.settings['Training']['savemodel'] +'model_weights' +str(490) +'.pth'
+        model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
         for ini in range(initializations):
             NAMES.append('_actionRL_seed%i'%seeds[ini])
             TITLES.append(r"RL-variable $\mu$, seed %i"%seeds[ini])
             env.settings['Integration']['suffix'] = NAMES[ini]
             env.settings['InitialConditions']['seed'] = seeds[ini]
-            run_trajectory(env, action = 'RL', model_path = model_path)
+            env.settings['Integration']['max_steps'] = 100
+            # run_trajectory(env, action = 'RL', model_path = model_path)
 
         for act in range(env.settings['RL']['number_actions']):
             for ini in range(initializations):
@@ -212,6 +217,7 @@ if __name__ == '__main__':
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
+                env.settings['Integration']['max_steps'] = 100
                 # run_trajectory(env, action = act)
 
         STATE = []

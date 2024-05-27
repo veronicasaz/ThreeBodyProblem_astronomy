@@ -133,9 +133,9 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     plt.show()
 
 def plot_test_reward(a, test_reward):
-    f, ax = plt.subplots(4, 1, figsize = (10,10))
+    f, ax = plt.subplots(3, 1, figsize = (10,7))
     plt.subplots_adjust(left=0.08, right=0.97, top=0.96, \
-                        bottom=0.1, hspace = 0.8)
+                        bottom=0.1, hspace = 0.6)
     fontsize = 18
 
     def filter(x, y):
@@ -147,7 +147,7 @@ def plot_test_reward(a, test_reward):
     
     # pts = 11
     # ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 1)
-    episodes = len(test_reward)-1 #TODO: 
+    episodes = len(test_reward) 
     x_episodes = np.arange(episodes)
     
     REWARD_avg = []
@@ -158,6 +158,7 @@ def plot_test_reward(a, test_reward):
     TCOMP_std = []
     EERROR_jump_avg = []
     EERROR_jump_std= []
+    print(np.shape(test_reward))
     for e in range(episodes):
         reshaped = np.array(test_reward[e]).reshape((-1, 3))
         REWARD_avg.append(np.mean(reshaped[:, 0]))
@@ -166,17 +167,21 @@ def plot_test_reward(a, test_reward):
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
 
-        jump_energy = np.zeros((np.shape(reshaped)[0]))
-        jump_energy[1:] = np.log10(abs(reshaped[1:, 1])) - np.log10(abs(reshaped[0:-1, 1]))
-        EERROR_jump_avg.append(min(jump_energy))
-        EERROR_jump_std.append(np.std(jump_energy))
+        # jump_energy = np.zeros((np.shape(reshaped)[0]))
+        # print(np.shape(reshaped))
+        # jump_energy[1:] = np.log10(abs(reshaped[1:, 1])) - np.log10(abs(reshaped[0:-1, 1]))
+        # print(jump_energy)
+        # EERROR_jump_avg.append(max(jump_energy))
+        # EERROR_jump_std.append(np.std(jump_energy))
 
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
 
-    y = [REWARD_avg, EERROR_avg, EERROR_jump_avg, TCOMP_avg]
-    e = [REWARD_std, EERROR_std, EERROR_jump_std, TCOMP_std]
-    for plot in range(4):
+    # y = [REWARD_avg, EERROR_avg, EERROR_jump_avg, TCOMP_avg]
+    # e = [REWARD_std, EERROR_std, EERROR_jump_std, TCOMP_std]
+    y = [REWARD_avg, EERROR_avg, TCOMP_avg]
+    e = [REWARD_std, EERROR_std, TCOMP_std]
+    for plot in range(3):
         # ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
         #                   alpha = 1, fmt='o')
         y[plot] = np.array(y[plot])
@@ -200,11 +205,10 @@ def plot_test_reward(a, test_reward):
             index[i] = np.where(elements == a[i])[0][0]
         return index, a
     index, value = maxN(y[0], 5) 
-    print("=============")
     print(index, value)
     for i in range(len(index)):
         ax[0].plot([index[i], index[i]], \
-                   [10*min(np.array(REWARD_avg)-np.array(REWARD_std)),\
+                   [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
                     value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
     
     for ax_i in ax: 
@@ -214,16 +218,16 @@ def plot_test_reward(a, test_reward):
     ax[-1].set_xlabel('Episode', fontsize = fontsize)
     ax[0].set_title('R', fontsize = fontsize)
     ax[1].set_title(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
-    ax[2].set_title(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
-    ax[3].set_title(r'$T_{comp}$ (s)', fontsize = fontsize)
+    # ax[2].set_title(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
+    ax[2].set_title(r'$T_{comp}$ (s)', fontsize = fontsize)
     ax[2].set_yscale('symlog', linthresh = 1e-1)
-    ax[3].set_yscale('log')
+    ax[2].set_yscale('log')
 
     # For hermite 1
     ax[0].set_ylim([-10, 2])
     ax[1].set_ylim([-12, -2])
     ax[2].set_ylim([-15, -0.5])
-    ax[3].set_ylim([0.0001, 0.003])
+    ax[2].set_ylim([0.0001, 0.003])
 
     # For hermite 2
     # ax[0].set_ylim([-10, 4])

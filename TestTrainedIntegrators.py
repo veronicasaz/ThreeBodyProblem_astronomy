@@ -25,7 +25,7 @@ from TestTrainedModel import load_reward
 
 
 if __name__ == '__main__':
-    experiment = 6 # number of the experiment to be run
+    experiment = 4 # number of the experiment to be run
     seed = 0
 
     ################################
@@ -137,7 +137,7 @@ if __name__ == '__main__':
         
         # train_net()
 
-        model = '2090_good'
+        model = '24_good'
         # env = ThreeBodyProblem_env()
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
         train_net_pretrained(model_path, env = env)
@@ -152,7 +152,7 @@ if __name__ == '__main__':
         plot_test_reward(env, testReward)
     
     elif experiment == 4: 
-        model = '100'
+        model = '13'
         
         seeds = np.arange(5)
         # Plot evolution for all actions, one initialization
@@ -228,7 +228,7 @@ if __name__ == '__main__':
 
     elif experiment == 6:
         # Run final energy vs computation time for different cases
-        initializations = 30
+        initializations = 300
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
@@ -244,21 +244,26 @@ if __name__ == '__main__':
 
         # RL
         for ini in range(initializations):
+            print(ini)
             NAMES.append('_actionRL_seed%i'%seeds[ini])
             TITLES.append(r"RL-variable $\mu$, seed %i"%seeds[ini])
             env.settings['Integration']['suffix'] = NAMES[ini]
             env.settings['InitialConditions']['seed'] = seeds[ini]
-            env.settings['Integration']['max_steps'] = 500
-            # run_trajectory(env, action = 'RL', model_path = model_path)
+            env.settings['Integration']['max_steps'] = 100
+            env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
+            run_trajectory(env, action = 'RL', model_path = model_path)
+
 
         for act in range(env.settings['RL']['number_actions']):
             for ini in range(initializations):
+                print(ini)
                 name = '_action%i_seed%i'%(act, seeds[ini])
                 NAMES.append(name)
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
-                env.settings['Integration']['max_steps'] = 500
+                env.settings['Integration']['max_steps'] = 100
+                env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
                 run_trajectory(env, action = act)
 
         STATE = []

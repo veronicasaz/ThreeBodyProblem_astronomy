@@ -373,7 +373,7 @@ class ThreeBodyProblem_env(gym.Env):
         else:
             if self.settings['RL']['reward_f'] == 0: 
                 a = -W[0]* abs(np.log10(abs(Delta_E)/1e-8))/\
-                         abs(np.log10(abs(Delta_E)))**2+\
+                         abs(np.log10(abs(Delta_E)))**2 /self.iteration+\
                     -W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))) +\
                     W[2]/abs(np.log10(action)) 
                 return a

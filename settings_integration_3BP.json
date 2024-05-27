@@ -36,7 +36,7 @@
 		"Symple": [1e-7, 1e-1]
 		},
 	"reward_f": 0,
-        "weights": [10.0, 50.0, 4.0]
+        "weights": [1000.0, 50.0, 4.0]
      },
 
     "Training":
@@ -45,11 +45,11 @@
     	"subfolder": "",
     	"suffix":"",
     	"display": true,
-        "max_episodes": 1000,
-        "testdata_size": 10,
+        "max_episodes": 2500,
+        "testdata_size": 5,
         "hidden_layers": 5,
         "neurons": 200,
-        "lr": 5e-7,
+        "lr": 1e-4,
         "batch_size": 128,
         "gamma": 0.99,
         "eps_start": 0.9,
