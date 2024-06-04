@@ -3,22 +3,27 @@ Authors: Veronica Saz Ulibarrena, Simon Portegies Zwart
 
 ## Project description
 Use of Reinforcement Learning for the choice of integration parameters that determine the time-step size for the integration of 
-the gravitational N-body problem.
+the gravitational 3-body problem.
 
-## Training and testing 
-TestGym.py -> Train the RL algorithm 
-TrainingFunctions.py -> Additional functions for training the RL algorithm
-
-TestTrainedModelGym_hermite.py -> multiple experiments to visualize the results of the RL training
-PlotsSimulation.py -> visualize results of the integration
+Full paper available at: LINK
 
 ## Environments
-Cluster/cluster_2D/envs/HermiteIntegration_env.py: environment for the integration of the Nbody problem with Hermite integrator
-Cluster/cluster_2D/envs/FlexibleIntegration_env.py: environment for the integration of the Nbody problem with different integrators
+env/ThreeBP_env.py: environment for the integration of the 3-body problem with different integrators. Hermite, Huayno, ph4, and Symple available. 
 
 ## Settings
-settings_hermite.json: settings for the integration and training of the RL for the case with Hermite integrator
-settings_multiple.json: settings for the integration and training of the RL for the case with different integrators
+settings_integration_3BP.json: settings containing initial conditions, integration, and RL training parameters.
+
+## Training and testing 
+TestEnvironment.py: experiments to analyze the problem, study the reward function and test the performance of the environment. 
+TestTrainedModel-> Train the RL algorithm and evaluate the trained model. Perform experiments to understand the performance of the trained model compared to the baseline. 
+TrainRL.py : functions necessary for training. DeepQN implementation and more
+TestTrainedIntegrators: experiments to apply the trained model to other integrators and retrain for Symple integrator. 
+
+## Plots
+plots.py: basic functions to plot trajectories, time evolution, and actions taken.
+
+
+
 
 ## Other
 helpfunctions.py: additional functions to help loading files
