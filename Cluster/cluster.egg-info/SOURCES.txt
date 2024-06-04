@@ -1,9 +1,0 @@
-setup.py
-cluster.egg-info/PKG-INFO
-cluster.egg-info/SOURCES.txt
-cluster.egg-info/dependency_links.txt
-cluster.egg-info/requires.txt
-cluster.egg-info/top_level.txt
-cluster_2D/__init__.py
-cluster_2D/envs/__init__.py
-cluster_2D/envs/cluster2D_env.py
