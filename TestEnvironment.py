@@ -2,7 +2,7 @@
 TestEnvironment: tests simulation environments
 
 Author: Veronica Saz Ulibarrena
-Last modified: 8-February-2024
+Last modified: 31-May-2024
 """
 import numpy as np
 import json
@@ -19,16 +19,9 @@ def run_trajectory(env, action = 'RL', model_path = None):
     """
     run_trajectory: Run one initialization with RL or with an integrator
     INPUTS:
-        action: fixed action or 'RL' 
         env: environment to simulate
-        name_suffix: suffix to be added for the file saving
-        steps: number of steps to simulate
-        reward_f: type of reward to use for the simulation and weights for the 3 terms
+        action: fixed action or 'RL' 
         model_path: path to the trained RL algorithm
-        steps_suffix: suffix for the file with the steps taken
-
-    OUTPUTS:
-        reward: reward for each step
     """
     if model_path == None:
         model_path = env.settings['Training']['savemodel'] +'model_weights.pth'
@@ -75,7 +68,6 @@ def load_state_files(env, namefile = None):
     load_state_files: Load run information 
     INPUTS: 
         env: environment of the saved files
-        steps: steps taken
         namefile: suffix for the loading 
     OUTPUTS:
         state: state of the bodies in the system
@@ -89,16 +81,19 @@ def load_state_files(env, namefile = None):
 
     return state, cons, tcomp
 
-def calculate_rewards(env, cons, W):
-    steps = np.shape(cons)[1]
-    cases = np.shape(W)[0]
-    R = np.zeros(cases, steps)
-    for j in range(cases):
-        env.settings['RL']['reward_f'] = W[j, 0]
-        # env.settings['RL']['weights'] = W[j, 1:]
-        for i in range(1, steps):
-            R[j, i] = env._calculate_reward(cons[i, 2], cons[i-1, 2], 0, cons[i, 0], W[j, 1:])
-    return R
+# def calculate_rewards(env, cons, W):
+#     """
+#     calculate_rewards: calculate reward 
+#     """
+#     steps = np.shape(cons)[1]
+#     cases = np.shape(W)[0]
+#     R = np.zeros(cases, steps)
+#     for j in range(cases):
+#         env.settings['RL']['reward_f'] = W[j, 0]
+#         # env.settings['RL']['weights'] = W[j, 1:]
+#         for i in range(1, steps):
+#             R[j, i] = env._calculate_reward(cons[i, 2], cons[i-1, 2], 0, cons[i, 0], W[j, 1:])
+#     return R
 
 if __name__ == '__main__':
     experiment = 1 # number of the experiment to be run
@@ -142,7 +137,7 @@ if __name__ == '__main__':
         plot_initializations(STATE, CONS, TCOMP, NAMES, save_path, seeds)
     
 
-    elif experiment == 1: # multiple reward functions
+    elif experiment == 1: # multiple reward functions, plot function shape
         steps = 150
         initializations = 30
         seeds = np.arange(initializations)
@@ -199,11 +194,12 @@ if __name__ == '__main__':
             CONS.append(cons)
             TCOMP.append(tcomp)
 
+        # plot one reward
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards.png'
         plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = True) 
+        # plot many rewards
         save_path = env.settings['Integration']['savefile'] + subfolder + 'Rewards_multiple.png'
         plot_rewards_multiple(env, STATE, CONS, TCOMP, reward_functions, initializations*2, save_path, plot_one = False) 
 
-    # TODO: code with plot for rewards
         
    

@@ -1,8 +1,8 @@
 """
-TestTrainedModelGym_hermite: tests and plots for the RL algorithm
+TestTrainedIntegrators: tests and plots for different integrators and training of Symple cases
 
 Author: Veronica Saz Ulibarrena
-Last modified: 8-February-2024
+Last modified: 31-May-2024
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     ################################
     # Integrator comparison
     ################################
-    if experiment == 0: # plot comparable actions
+    if experiment == 0: # plot comparable actions for different integrators in an energy vs tcomp plot
 
         # Run final energy vs computation time for different cases
         initializations = 100
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         plot_energy_vs_tcomp_integrators(env, STATE, CONS, TCOMP, TITLES, seeds, save_path)
 
 
-    elif experiment == 1: # run actions integrators
+    elif experiment == 1: # run actions integrators and plot on one initialization
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '6_Comparison_integrators/'
         env.settings['InitialConditions']['seed'] = 1
@@ -130,6 +130,7 @@ if __name__ == '__main__':
     # Symple
     ################################
     elif experiment == 2: # Train symple
+        # Without pretraining
         env = ThreeBodyProblem_env()
         env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
         env.settings['Integration']['integrator'] = 'Symple'
@@ -137,13 +138,13 @@ if __name__ == '__main__':
         
         # train_net()
 
+        # From a pretrained model
         model = '24_good'
         # env = ThreeBodyProblem_env()
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
         train_net_pretrained(model_path, env = env)
 
-    elif experiment == 3:
-        # Plot training results
+    elif experiment == 3: # Plot training results for Symple
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/Symple/' 
         env.settings['Integration']['integrator'] = 'Symple'
@@ -151,11 +152,10 @@ if __name__ == '__main__':
         reward, EnergyError, HuberLoss, tcomp, testReward = load_reward(env, suffix = '')
         plot_test_reward(env, testReward)
     
-    elif experiment == 4: 
-        model = '13'
-        
+    elif experiment == 4: # Plot evolution for all actions, one initialization for symple
+        model = '13'    
         seeds = np.arange(5)
-        # Plot evolution for all actions, one initialization
+    
         for i in range(len(seeds)):
             env = ThreeBodyProblem_env()
             env.settings['Integration']['subfolder'] = '7_AllActionsRL_Symple/'
@@ -194,7 +194,7 @@ if __name__ == '__main__':
             plot_trajs(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index=[0,1])
 
     elif experiment == 5: 
-        # Plot evolution for many RL models
+        # Plot evolution for many RL models with symple
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '8_ManyRLmodelsRL_Symple/'
         env.settings['Integration']['integrator'] = 'Symple'
@@ -227,7 +227,7 @@ if __name__ == '__main__':
         plot_trajs_RL(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index='bestworst')
 
     elif experiment == 6:
-        # Run final energy vs computation time for different cases
+        # Run final energy vs computation time for different cases with symple
         initializations = 300
         seeds = np.arange(initializations)
 

@@ -1,8 +1,9 @@
 """
-Bridged2Body_env: environment for integration of a 2 body problem using bridge
+ThreeBP_env: environment for integration of a 3 body problem using different integrators
+
 
 Author: Veronica Saz Ulibarrena
-Last modified: 8-February-2024
+Last modified: 31-May-2024
 
 Based on https://www.gymlibrary.dev/content/environment_creation/
 pip install -e ENVS needed to create a package
@@ -32,6 +33,11 @@ from amuse.ext.orbital_elements import get_orbital_elements_from_arrays
 from amuse.ic import make_planets_oligarch
 
 def plot_state(bodies):
+    """
+    plot_state: plot positions of the particles at a specific time
+    INPUTS:
+        bodies: particles set with the information of the bodies in the system
+    """
     v = (bodies.vx**2 + bodies.vy**2 + bodies.vz**2).sqrt()
     plt.scatter(bodies.x.value_in(units.au),\
                 bodies.y.value_in(units.au), \
@@ -43,6 +49,10 @@ def plot_state(bodies):
 def load_json(filepath):
     """
     load_json: load json file as dictionary
+    INPUTS:
+        filepath: path of the file to open
+    OUTPUTS:
+        data: dictionary with the data from the json file
     """
     with open(filepath) as jsonFile:
         data = json.load(jsonFile)
@@ -52,6 +62,9 @@ def load_json(filepath):
     
 class ThreeBodyProblem_env(gym.Env):
     def __init__(self, render_mode = None):
+        """
+        ThreeBodyProblem_env: environment for the initialization and integration of a system of 3 bodies
+        """
         self.settings = load_json("./settings_integration_3BP.json")
         self.n_bodies = self.settings['InitialConditions']['n_bodies']
 
@@ -59,6 +72,9 @@ class ThreeBodyProblem_env(gym.Env):
 
 
     def _initialize_RL(self):
+        """
+        _initialize_RL: start the RL variables
+        """
         integrator = self.settings['Integration']['integrator']
 
         # STATE
@@ -80,11 +96,15 @@ class ThreeBodyProblem_env(gym.Env):
         
         self.action_space = gym.spaces.Discrete(len(self.actions)) 
 
-        # Training parameters
+        # Weights
         self.W = self.settings['RL']['weights']
 
     def _initial_conditions(self):
-
+        """
+        _initial_conditions: intitialize the set of three particles
+        OUTPUTS:
+            bodies: set of particles with the right masses, velocities, and positions
+        """
         bodies = Particles(self.settings['InitialConditions']['n_bodies'])
         ranges = self.settings['InitialConditions']['ranges_triple']
         ranges_np = np.array(list(ranges.values()))
@@ -107,12 +127,6 @@ class ThreeBodyProblem_env(gym.Env):
     ## BASIC FUNCTIONS
     def reset(self):
         """
-        reset: reset the simulation 
-        INPUTS:
-            seed: choose the random seed
-            steps: simulation steps to be taken
-            typereward: type or reward to be applied to the problem
-            save_state: save state (True or False)
         OUTPUTS:
             state_RL: state vector to be passed to the RL
             info_prev: information vector of the previous time step (zero vector)
@@ -213,10 +227,16 @@ class ThreeBodyProblem_env(gym.Env):
         return state, reward, terminated, info
     
     def close(self):
+        """
+        close: close the environment by closing the integrator
+        """
         self.gravity.stop()
 
     ## ADDITIONAL FUNCTIONS NEEDED
     def units(self):
+        """
+        units: select the set of units to use throughout the simulation
+        """
         # Choose set of units for the problem
         if self.settings['InitialConditions']['units'] == 'si':
             self.G = constants.G
@@ -241,7 +261,7 @@ class ThreeBodyProblem_env(gym.Env):
         """
         _initialize_integrator: initialize chosen integrator with the converter and parameters
         INPUTS:
-            action: choice of the action for a parameter that depends on the integrator. 
+            integrator_type: choice of the integrators
         Options:
             - Hermite: action is the time-step parameter
             - Ph4: action is the time-step parameter
@@ -293,9 +313,9 @@ class ThreeBodyProblem_env(gym.Env):
     
     def _get_info(self, particles, initial = False): # change to include multiple energies
         """
-        _get_info: get energy error, angular momentum error at current state
+        _get_info: get energy error at current state
         OUTPUTS:
-            Step energy error
+            E_total or Delta_E_total: Step energy error
         """
         E_kin = particles.kinetic_energy().value_in(self.units_energy)
         E_pot = particles.potential_energy(G = self.G).value_in(self.units_energy)
@@ -313,6 +333,9 @@ class ThreeBodyProblem_env(gym.Env):
     def _get_state(self, particles, E):  # TODO: change to include all particles?
         """
         _get_state: create the state vector
+        INPUTS:
+            particles: set of particles to get the state from
+            E: energy error at the current integration step
         Options:
             - norm: norm of the positions and velocities of each body and the masses
             - cart: 2D cartesian coordinates of the position and angular momentum plus the energy error
@@ -425,6 +448,7 @@ class ThreeBodyProblem_env(gym.Env):
             step: simulation step
             particles: particles set
             E: energy error
+            T: computation time
             L: angular momentum
         """
         self.state[step, :, 0] = action

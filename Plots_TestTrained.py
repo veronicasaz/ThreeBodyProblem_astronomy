@@ -1,3 +1,9 @@
+"""
+Plots_TestTrained: plotting functions from the trained models
+
+Author: Veronica Saz Ulibarrena
+Last modified: 31-May-2024
+"""
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -133,6 +139,13 @@ def plot_reward(a, reward, Eerror, HuberLoss):
     plt.show()
 
 def plot_test_reward(a, test_reward):
+    """
+    plot_test_reward: plot training parameters taken from the test dataset
+    INPUTS:
+        a: environment
+        test_reward: array with each row for each episode and columns: 
+            [Reward, Energy error, Computation time]
+    """
     f, ax = plt.subplots(3, 1, figsize = (10,7))
     plt.subplots_adjust(left=0.08, right=0.97, top=0.96, \
                         bottom=0.1, hspace = 0.6)
@@ -167,18 +180,9 @@ def plot_test_reward(a, test_reward):
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
 
-        # jump_energy = np.zeros((np.shape(reshaped)[0]))
-        # print(np.shape(reshaped))
-        # jump_energy[1:] = np.log10(abs(reshaped[1:, 1])) - np.log10(abs(reshaped[0:-1, 1]))
-        # print(jump_energy)
-        # EERROR_jump_avg.append(max(jump_energy))
-        # EERROR_jump_std.append(np.std(jump_energy))
-
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
 
-    # y = [REWARD_avg, EERROR_avg, EERROR_jump_avg, TCOMP_avg]
-    # e = [REWARD_std, EERROR_std, EERROR_jump_std, TCOMP_std]
     y = [REWARD_avg, EERROR_avg, TCOMP_avg]
     e = [REWARD_std, EERROR_std, TCOMP_std]
     for plot in range(3):
@@ -186,14 +190,10 @@ def plot_test_reward(a, test_reward):
         #                   alpha = 1, fmt='o')
         y[plot] = np.array(y[plot])
         e[plot] = np.array(e[plot])
-        # ax[plot].scatter(x_episodes, y[plot] + e[plot], c = colors[1], \
-        #                   alpha = 0.5, marker = '.')
         ax[plot].plot(x_episodes, y[plot] + e[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
         ax[plot].plot(x_episodes, y[plot] - e[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
-        # ax[plot].scatter(x_episodes, y[plot] - e[plot], c = colors[1], \
-        #                   alpha = 0.5, marker = '.')
         ax[plot].plot(x_episodes, y[plot], color= colors[0], \
                           alpha = 1, marker = '.')
 
@@ -205,7 +205,6 @@ def plot_test_reward(a, test_reward):
             index[i] = np.where(elements == a[i])[0][0]
         return index, a
     index, value = maxN(y[0], 5) 
-    print(index, value)
     for i in range(len(index)):
         ax[0].plot([index[i], index[i]], \
                    [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
@@ -241,7 +240,6 @@ def plot_test_reward(a, test_reward):
     # ax[1].set_ylim([-12, 5])
     # ax[2].set_ylim([-30, -0.8])
     # ax[3].set_ylim([0.0001, 0.05])
-
     
     path = a.settings['Integration']['savefile'] + a.settings['Integration']['subfolder']
     plt.savefig(path + 'test_reward.png', dpi = 100)
@@ -249,12 +247,12 @@ def plot_test_reward(a, test_reward):
 
 def plot_balance(a, reward, Eerror, tcomp):
     """
-    plot_reward: plot training parameters such as reward
+    plot_balance: plot training parameters such as reward
     INPUTS:
         a: environment
         reward: rewards
         Eerror: energy error
-        HuberLoss: huber loss
+        tcomp: computation time
     """
     episodes = len(reward)-1
     x_episodes = np.arange(episodes)
@@ -293,9 +291,18 @@ def plot_balance(a, reward, Eerror, tcomp):
     plt.savefig(path +'tcomp_vs_energy_training.png', dpi = 100)
     plt.show()
 
-
-
 def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'bestworst'):
+    """
+    plot_trajs: plot with trajectories, evolution of energy error, reward, actions for a comparison of cases
+    INPUTS:
+        env: environment for the runs
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        save_path: path to save the figure
+        plot_traj_index: indexes of the trajectories to plot on the cartesian plots
+    """
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
 
@@ -395,10 +402,17 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
     plt.show()
 
 
-
 def plot_trajs_RL(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'bestworst'):
     """
-    plot_trajs_RL: plot results obtained with different trained models
+    plot_trajs_RL: plot with trajectories, evolution of energy error, reward, actions for a comparison of trained models
+    INPUTS:
+        env: environment for the runs
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        save_path: path to save the figure
+        plot_traj_index: indexes of the trajectories to plot on the cartesian plots
     """
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
@@ -497,6 +511,16 @@ def plot_trajs_RL(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index =
     plt.show()
 
 def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
+    """
+    plot_energy_vs_tcomp: plot energy vs computation time at the end of the simulation for many initializations
+    INPUTS:
+        env: environment for the runs
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        save_path: path to save the figure
+    """
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
 
@@ -505,13 +529,6 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     X = []
     Y = []
     for i in range(types):
-        # x = np.zeros(len(seeds))
-        # y = np.zeros( len(seeds))
-            # a = Energy_error[1:, i*len(seeds)+j]
-            # i1 = np.nonzero(a)[0][-1]
-            # print(i*len(seeds)+j)
-            # x[j] = 
-            # y[j] = sum(T_comp[:, i*len(seeds)+j])
         X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
         Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
 
@@ -583,6 +600,17 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
 
     
 def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
+    """
+    plot_energy_vs_tcomp_integrators: plot energy vs computation time at the end of the simulation for many initializations
+    with different integrators
+    INPUTS:
+        env: environment for the runs
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        save_path: path to save the figure
+    """
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
 
@@ -629,10 +657,7 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
     ax1.set_xlabel('Total computation time (s)',  fontsize = labelsize)
     ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
     ax1.set_yscale('log')
-    # ax1.set_xscale('symlog', linthresh = 0.12)
     ax1.tick_params(axis='both', which='major', labelsize=labelsize-2)
-    # ax2.set_yscale('log')
-    # ax3.set_yscale('log')
 
     ax1.set_xscale('log')
     ax1.set_xlim([0.028, 1.0])
@@ -643,15 +668,20 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
 
     
 def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
+    """
+    plot_int_comparison: compare different integrators when applied to one initialization
+    INPUTS:
+        env: environment to use
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        I: list of integrators
+        save_path: path to save the figure
+    """
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
-    """
-    plot_int_comparison: compare different integrators
-    INPUTS:
-        I: list of integrators
-        steps: steps taken
-        ENV: list of environments used for each integration
-    """
+    
     fig = plt.figure(figsize = (10,14))
     gs1 = matplotlib.gridspec.GridSpec(len(I)+2, 1, figure = fig, left=0.13, wspace=0.3, 
                                        hspace = 0.5, right = 0.99,

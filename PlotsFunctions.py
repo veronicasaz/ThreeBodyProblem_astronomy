@@ -2,7 +2,7 @@
 PlotsSimulation: plotting functions
 
 Author: Veronica Saz Ulibarrena
-Last modified: 8-February-2024
+Last modified: 31-May-2024
 """
 
 import numpy as np
@@ -28,6 +28,9 @@ def plot_planets_trajectory(ax, state, name_planets, labelsize = 15, steps = 30,
         labelsize: size of matplotlib labels
         steps: steps to be plotted
         legend_on: True or False to display the legend
+        axislabel_on: True or false to display the label of the axis
+        marker: choice of marker to use
+        axis: choice of dimentions to plot in 2d: xy, xz available
     """
     if axis == 'xy': 
         indexes = [2, 3]
@@ -72,6 +75,7 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12,
         name_planets: array with the names of the bodies
         labelsize: size of matplotlib labels
         steps: steps to be plotted
+        legend: True or false to display legend
     """
     n_planets = np.shape(state)[1]
     Dist = []
@@ -101,9 +105,8 @@ def plot_distance_to_one(ax, x_axis, state, labelsize = 12,
         ax: matplotlib ax to be plotted in 
         x_axis: time or steps to be plotted in the x axis
         state: array with the state of each of the particles at every step
-        name_planets: array with the names of the bodies
         labelsize: size of matplotlib labels
-        steps: steps to be plotted
+        legend: True or false to display legend
     """
     steps = len(x_axis)
     Dist = []
@@ -133,6 +136,9 @@ def plot_actions_taken(ax, x_axis, y_axis, colorindex = None, label = None, mark
         ax: matplotlib ax to be plotted in 
         x_axis: time or steps to be plotted in the x axis
         y_axis: data for the y axis
+        colorindex: index of the color to use
+        label: label to add 
+        markerindex: index of the marker to use
     """
     if colorindex != None:
         color = colors[(colorindex+2)%len(colors)] # start in the blues

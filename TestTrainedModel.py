@@ -1,8 +1,8 @@
 """
-TestTrainedModelGym_hermite: tests and plots for the RL algorithm
+TestTrainedModel: tests and plots for the RL algorithm
 
 Author: Veronica Saz Ulibarrena
-Last modified: 8-February-2024
+Last modified: 31-May-2024
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -22,6 +22,9 @@ from Plots_TestTrained import plot_reward, plot_balance, plot_test_reward,\
     plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp
 
 def create_testing_dataset(env, seeds):
+    """
+    create_testing_dataset: create a dataset to test
+    """
     state = np.zeros((len(seeds), 6*3)) # r, v for 3 particles
     for i in range(len(seeds)):
         env.settings['InitialConditions']['seed'] = seeds[i]
@@ -37,10 +40,13 @@ def load_reward(a, suffix = ''):
     load_reward: load rewards from file 
     INPUTS:
         a: environment
+        suffix: suffix name of the file
     OUTPUTS:
         score: rewards
         EnergyE: energy error
         HuberLoss: huber loss
+        tcomp: computation time
+        testReward: reward of the test dataset
     """
     score = []
     with open(a.settings['Training']['savemodel'] + suffix + "rewards.txt", "r") as f:
@@ -92,29 +98,28 @@ if __name__ == '__main__':
         seeds = np.arange(systems)
         create_testing_dataset(env, seeds)
 
-    elif experiment == 1: # Train
-        train_net()
+    elif experiment == 1: # Train model 
+        train_net() # without pretraining
 
 
+        # From pretrained model
         model = '2090_good'
         env = ThreeBodyProblem_env()
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
         # env.settings['Training']['max_episodes'] = 100
-        # env.settings['Training']['max_episodes'] = 100
         # env.settings['Training']['lr'] = 1e-5
-        # train_net_pretrained(model_path, env = env)
+        train_net_pretrained(model_path, env = env)
 
     elif experiment == 2:
         # Plot training results
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/' 
         reward, EnergyError, HuberLoss, tcomp, testReward = load_reward(env, suffix = '')
-        # plot_reward(env, reward, EnergyError, HuberLoss)
+        plot_reward(env, reward, EnergyError, HuberLoss)
         # plot_balance(env, reward, EnergyError, tcomp)
         plot_test_reward(env, testReward)
         
-    elif experiment == 3: 
-        # model = '270_good'
+    elif experiment == 3: # plot comparison of trianed model with baseline results
         model = '250'
         
         seeds = np.arange(8)
@@ -138,7 +143,7 @@ if __name__ == '__main__':
                 NAMES.append('_action_'+ str(env.actions[act])+'_seed_'+str(seeds[i]))
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = NAMES[act+1]
-                # run_trajectory(env, action = act)
+                run_trajectory(env, action = act)
 
             STATE = []
             CONS = []

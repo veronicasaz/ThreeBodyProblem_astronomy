@@ -2,7 +2,7 @@
 TestGym: Training of the reinforcement learning algorithm
 
 Author: Veronica Saz Ulibarrena
-Last modified: 6-February-2024
+Last modified: 31-May-2024
 
 Based on:
 https://www.learndatasci.com/tutorials/reinforcement-q-learning-scratch-python-openai-gym/https://www.gymlibrary.dev/content/environment_creation/
@@ -189,12 +189,15 @@ def select_action(state, policy_net, Eps, env, device, steps_done):
     else:
         return torch.tensor([[env.action_space.sample()]], device=device, dtype=torch.long), steps_done
 
-
-# def load_test_dataset(env):
-#     state = np.load(env.settings['Training']['savemodel']  + 'TestDataset.npy')
-#     return state
-
 def test_network(env, model):
+    """
+    test_network: test the performance of a model during training on a test dataset
+    INPUTS:
+        env: environment being used
+        model: RL model to be evaluated
+    OUTPUTS: 
+        Reward: Reward value, energy error and computation time for each test case 
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     test_samples = env.settings['Training']['testdata_size']
@@ -226,6 +229,12 @@ def test_network(env, model):
     return Reward.flatten()
 
 def train_net(env = None, suffix = ''):
+    """
+    train_net: train RL algorithm
+    INPUTS:
+        env: environment to use
+        suffix: suffix for the saved file
+    """
     # Environment
     if env == None:
         # env = gym.make('bridgedparticles:ThreeBody-v0') # create the env once it's been registered
@@ -411,6 +420,13 @@ def train_net(env = None, suffix = ''):
     print('Complete')
 
 def train_net_pretrained(model_path, env = None, suffix = ''):
+    """
+    train_net_pretrained: train RL algorithm from a pretrained set of weights
+    INPUTS:
+        model_path: path of the pretrained model
+        env: environment to use
+        suffix: suffix for the saved file
+    """
     # Environment
     if env == None:
         # env = gym.make('bridgedparticles:ThreeBody-v0') # create the env once it's been registered
