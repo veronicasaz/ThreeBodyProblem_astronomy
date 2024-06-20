@@ -1,11 +1,12 @@
-# RL_integrator
+# Physics-based Reinforcement Learning for the integration of the chaotic gravitational N-body problem
 Authors: Veronica Saz Ulibarrena, Simon Portegies Zwart
+Date: 4-6-2024
 
 ## Project description
 Use of Reinforcement Learning for the choice of integration parameters that determine the time-step size for the integration of 
 the gravitational 3-body problem.
 
-Full paper available at: LINK
+Full paper available at: 
 
 ## Environments
 * `env/ThreeBP_env.py`: environment for the integration of the 3-body problem with different integrators. Hermite, Huayno, ph4, and Symple available. 
@@ -23,6 +24,9 @@ Full paper available at: LINK
 * `PlotsFunctions.py`: basic functions to plot trajectories, time evolution, and actions taken.
 * `Plots_TestEnvironment.py`: plots and functions to plot the results of the experiments in * `TestEnvironment.py`.
 * `Plots_TestTrained.py`: plots and functions to plot the results of the experiments in * `TestTrainedModel.py` and * `TestTrainedntegrators.py`.
+
+## Models
+Includes the final models used for the experiments of Hermite and Symple. The details are available in the paper. 
 
 
 
