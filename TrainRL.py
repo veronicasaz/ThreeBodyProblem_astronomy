@@ -21,9 +21,9 @@ import matplotlib
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
-torch.manual_seed(0)
 import random
 import math
+import time
 
 from collections import namedtuple, deque
 
@@ -228,13 +228,14 @@ def test_network(env, model):
     
     return Reward.flatten()
 
-def train_net(env = None, suffix = ''):
+def train_net(env = None, suffix = '', model_path_pretrained = False):
     """
     train_net: train RL algorithm
     INPUTS:
         env: environment to use
         suffix: suffix for the saved file
     """
+    
     # Environment
     if env == None:
         # env = gym.make('bridgedparticles:ThreeBody-v0') # create the env once it's been registered
@@ -263,6 +264,8 @@ def train_net(env = None, suffix = ''):
     LAYERS = env.settings['Training']['hidden_layers']
     env.settings['Integration']['savestate'] = False
     env.settings['Training']['display'] = False
+    torch.manual_seed(env.settings['Training']['seed_weights'])
+
 
     # test_dataset = load_test_dataset(env)
 
@@ -275,6 +278,8 @@ def train_net(env = None, suffix = ''):
     # Create nets
     policy_net = DQN(n_observations, n_actions, NEURONS, LAYERS).to(device)
     target_net = DQN(n_observations, n_actions, NEURONS, LAYERS).to(device)
+    if model_path_pretrained != False:
+        policy_net.load_state_dict(torch.load(model_path_pretrained))
     target_net.load_state_dict(policy_net.state_dict())
 
     Transition = namedtuple('Transition',
@@ -297,7 +302,9 @@ def train_net(env = None, suffix = ''):
     save_huberloss = list()
     save_tcomp = list()
     save_test_reward = list()
-    max_reward = np.ones(10)*-10000
+    max_reward = np.ones(10)*(-10000)
+    save_training_time = [0]
+    time_0 = time.time()
 
     # Training loop
     while episode_number <= env.settings['Training']['max_episodes']:
@@ -365,7 +372,8 @@ def train_net(env = None, suffix = ''):
         save_huberloss.append(save_huberloss_list)
         save_tcomp.append(save_tcomp_list)
         save_test_reward.append(test_reward_list)
-        
+        save_training_time.append(time.time()-time_0)
+
         if episode_number %10 == 0:
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
         else:
@@ -414,203 +422,16 @@ def train_net(env = None, suffix = ''):
                     f.write(str(s) +" ")
                 f.write("\n")
 
-        episode_number += 1
-
-    env.close()
-    print('Complete')
-
-def train_net_pretrained(model_path, env = None, suffix = ''):
-    """
-    train_net_pretrained: train RL algorithm from a pretrained set of weights
-    INPUTS:
-        model_path: path of the pretrained model
-        env: environment to use
-        suffix: suffix for the saved file
-    """
-    # Environment
-    if env == None:
-        # env = gym.make('bridgedparticles:ThreeBody-v0') # create the env once it's been registered
-        import env
-        env = gym.make('TBP_env-v0')
-
-    # if GPU is to be used
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    # set up matplotlib
-    is_ipython = 'inline' in matplotlib.get_backend()
-    if is_ipython:
-        from IPython import display
-
-    # settings = load_json("./settings_symple.json")
-    
-    # TRAINING settings
-    BATCH_SIZE = env.settings['Training']['batch_size'] # number of transitions sampled from the replay buffer
-    GAMMA = env.settings['Training']['gamma'] # discount factor
-    EPS_START = env.settings['Training']['eps_start'] # starting value of epsilon
-    EPS_END = env.settings['Training']['eps_end'] # final value of epsilon
-    EPS_DECAY = env.settings['Training']['eps_decay'] # controls the rate of exponential decay of epsilon, higher means a slower decay
-    TAU = env.settings['Training']['tau'] # update rate of the target network
-    LR = env.settings['Training']['lr'] # learning rate of the ``AdamW`` optimizer
-    NEURONS = env.settings['Training']['neurons']
-    LAYERS = env.settings['Training']['hidden_layers']
-    env.settings['Integration']['savestate'] = False
-    env.settings['Training']['display'] = False
-
-    # test_dataset = load_test_dataset(env)
-
-    # Get number of actions from gym action space
-    n_actions = env.action_space.n # TODO: test
-
-    # Get the number of state observations
-    n_observations = env.observation_space_n # TODO: test
-
-    # Create nets
-    policy_net = DQN(n_observations, n_actions, NEURONS, LAYERS).to(device)
-    target_net = DQN(n_observations, n_actions, NEURONS, LAYERS).to(device)
-    policy_net.load_state_dict(torch.load(model_path))
-    target_net.load_state_dict(policy_net.state_dict())
-
-    Transition = namedtuple('Transition',
-                    ('state', 'action', 'next_state', 'reward'))
-
-    optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-    memory = ReplayMemory(10000, Transition = Transition)
-
-    
-    if torch.cuda.is_available():
-        num_episodes = 600
-    else:
-        num_episodes = 50
-
-    episode_number = 0 # counter of the number of steps
-
-    # lists to save training progress
-    save_reward = list()
-    save_EnergyE = list()
-    save_huberloss = list()
-    save_tcomp = list()
-    save_test_reward = list()
-    max_reward = np.ones(10)*-10000 # small number
-
-    # Training loop
-    while episode_number <= env.settings['Training']['max_episodes']:
-        print("Training episode: %i/%i"%(episode_number, env.settings['Training']['max_episodes']))
-
-        # Initialize the environment and get it's state
-        env.settings['InitialConditions']['seed'] = np.random.randint(1000) # make initial conditions vary
-        state, info = env.reset()
-
-        state = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-        save_reward_list = list()
-        save_EnergyE_list = list()
-        save_tcomp_list = list()
-        save_huberloss_list = list()
-
-        # Do first step without updating the networks and with the best step
-        action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, 0)
-        observation, reward_p, terminated, info = env.step(action.item())
-
-        terminated = False
-        while terminated == False:
-            # Take a step
-            action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
-            observation, reward_p, terminated, info = env.step(action.item())
-            save_reward_list.append(reward_p)
-            save_EnergyE_list.append(info['Energy_error'])
-            save_tcomp_list.append(info['tcomp'])
-            
-            reward = torch.tensor([reward_p], device=device)
-            if terminated:
-                next_state = None
-            else:
-                next_state = torch.tensor(observation, dtype=torch.float32, device=device).unsqueeze(0)
-
-            # Store the transition in memory
-            memory.push(state, action, next_state, reward)
-
-            # Move to the next state
-            state = next_state
-
-            # Perform one step of the optimization (on the policy network)
-            Huber_loss = optimize_model(policy_net, target_net, memory, \
-                    Transition, device, GAMMA, BATCH_SIZE,\
-                    optimizer)
-            
-            if Huber_loss == None:
-                save_huberloss_list.append(0)
-            else:
-                save_huberloss_list.append(Huber_loss.item())
-
-            # Soft update of the target network's weights
-            # θ′ ← τ θ + (1 −τ )θ′
-            target_net_state_dict = target_net.state_dict()
-            policy_net_state_dict = policy_net.state_dict()
-            for key in policy_net_state_dict:
-                target_net_state_dict[key] = policy_net_state_dict[key]*TAU + target_net_state_dict[key]*(1-TAU)
-            target_net.load_state_dict(target_net_state_dict)
-
-        env.close()
-
-        test_reward_list = test_network(env, policy_net)
-
-        save_reward.append(save_reward_list)
-        save_EnergyE.append(save_EnergyE_list)
-        save_huberloss.append(save_huberloss_list)
-        save_tcomp.append(save_tcomp_list)
-        save_test_reward.append(test_reward_list)
-        
-        if episode_number %10 == 0:
-            torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
-        else:
-            torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights.pth') # save model
-
-        # Save model if reward is max
-
-        avg_reward = np.mean(test_reward_list)
-        if avg_reward > min(max_reward):
-            indx = np.where(max_reward == min(max_reward))[0]
-            if len(indx) > 1:
-                indx = indx[0]
-            max_reward[indx] =  avg_reward
-            torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
-        if episode_number %100 == 0:
-            max_reward = np.ones(10)*-10000 # reset values
-
-        # save training
-        with open(env.settings['Training']['savemodel']+suffix+"rewards.txt", "w") as f:
-            for ss in save_reward:
-                for s in ss:
-                    f.write(str(s) +" ")
-                f.write("\n")
-
-        with open(env.settings['Training']['savemodel']+suffix+"EnergyError.txt", "w") as f:
-            for ss in save_EnergyE:
-                for s in ss:
-                    f.write(str(s) +" ")
-                f.write("\n")
-
-        with open(env.settings['Training']['savemodel']+suffix+"Tcomp.txt", "w") as f:
-            for ss in save_tcomp:
-                for s in ss:
-                    f.write(str(s) +" ")
-                f.write("\n")
-
-        with open(env.settings['Training']['savemodel']+suffix+"HuberLoss.txt", "w") as f:
-            for ss in save_huberloss:
-                for s in ss:
-                    f.write(str(s) +" ")
-                f.write("\n")
-
-        with open(env.settings['Training']['savemodel']+suffix+"TestReward.txt", "w") as f:
-            for ss in save_test_reward:
-                for s in ss:
-                    f.write(str(s) +" ")
-                f.write("\n")
+        with open(env.settings['Training']['savemodel']+suffix+"TrainingTime.txt", "w") as f:
+            for ss in save_training_time:
+                f.write(str(ss) +" ")
 
         episode_number += 1
 
     env.close()
     print('Complete')
+
+
 
 if __name__ == '__main__':
     train_net()

@@ -84,6 +84,12 @@ class ThreeBodyProblem_env(gym.Env):
                                                 high=np.array([np.inf]*self.observation_space_n), \
                                                 dtype=np.float64)
             
+        elif self.settings["RL"]["state"] == 'dist':
+            self.observation_space_n = 3
+            self.observation_space = gym.spaces.Box(low=np.array([-np.inf]*self.observation_space_n), \
+                                                high=np.array([np.inf]*self.observation_space_n), \
+                                                dtype=np.float64)
+            
         # ACTION
         # From a range of paramters
         if self.settings['RL']['action'] == 'range':
@@ -363,15 +369,19 @@ class ThreeBodyProblem_env(gym.Env):
                 state[-1] = -np.log10(abs(E))
         
         elif self.settings['RL']['state'] == 'dist':
-            state = np.zeros((self.n_bodies)*2) # dist r, dist v
+            state = np.zeros(3) # closest distance, v diff, E
 
             counter = 0
+            dist = []
+            vel = []
             for i in range(self.n_bodies):
                 for j in range(i+1, self.n_bodies):
-                    state[counter]  = np.linalg.norm(particles_p_nbody[i,:]-particles_p_nbody[j,:], axis = 0) /10
-                    state[self.n_bodies+counter ] = np.linalg.norm(particles_v_nbody[i,:]-particles_v_nbody[j,:], axis = 0)
+                    dist.append( np.linalg.norm(particles_p_nbody[i,:]-particles_p_nbody[j,:], axis = 0) /10)
+                    vel.append(np.linalg.norm(particles_v_nbody[i,:]-particles_v_nbody[j,:], axis = 0))
                     counter += 1
-
+            index = np.where(np.array(dist)== min(np.array(dist)))[0][0]
+            state[0] = dist[index]
+            state[1] = vel[index]
             state[-1] = -np.log10(abs(E))
 
         return state
@@ -395,8 +405,8 @@ class ThreeBodyProblem_env(gym.Env):
             return 0
         else:
             if self.settings['RL']['reward_f'] == 0: 
-                a = -W[0]* np.log10(abs(Delta_E)/1e-8)/\
-                         abs(np.log10(abs(Delta_E)))**2 /self.iteration+\
+                a = -W[0]* abs(np.log10(abs(Delta_E)/1e-8)/\
+                         abs(np.log10(abs(Delta_E)))**2 /self.iteration)+\
                     -W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))) +\
                     W[2]/abs(np.log10(action)) 
                 return a

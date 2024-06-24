@@ -16,7 +16,7 @@ import torchvision.models as models
 import gym
 
 from env.ThreeBP_env import ThreeBodyProblem_env
-from TrainRL import train_net, train_net_pretrained
+from TrainRL import train_net
 from TestEnvironment import run_trajectory, load_state_files
 from Plots_TestTrained import plot_test_reward,\
     plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp, \
@@ -139,27 +139,28 @@ if __name__ == '__main__':
         # train_net()
 
         # From a pretrained model
-        model = '24_good'
+        # model = '1184'
         # env = ThreeBodyProblem_env()
-        model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
-        train_net_pretrained(model_path, env = env)
+        # model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
+        train_net(model_path_pretrained=False, env = env)
 
     elif experiment == 3: # Plot training results for Symple
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/Symple/' 
         env.settings['Integration']['integrator'] = 'Symple'
         env._initialize_RL()
-        reward, EnergyError, HuberLoss, tcomp, testReward = load_reward(env, suffix = '')
-        plot_test_reward(env, testReward)
+        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '')
+        plot_test_reward(env, testReward, trainingTime)
     
     elif experiment == 4: # Plot evolution for all actions, one initialization for symple
-        model = '13'    
+        model = '59'    
         seeds = np.arange(5)
     
         for i in range(len(seeds)):
             env = ThreeBodyProblem_env()
             env.settings['Integration']['subfolder'] = '7_AllActionsRL_Symple/'
             env.settings['Integration']['integrator'] = 'Symple'
+            env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
             env._initialize_RL()
 
             NAMES = []
@@ -169,6 +170,8 @@ if __name__ == '__main__':
             env.settings['Integration']['suffix'] = NAMES[0]
             env.settings['InitialConditions']['seed'] = seeds[i]
             env.settings['Integration']['max_steps'] = 150
+
+            index_to_plot = [0, 1, 6, 11, 16, 20]
 
             model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
@@ -182,7 +185,8 @@ if __name__ == '__main__':
             STATE = []
             CONS = []
             TCOMP = []
-            for act in range(len(NAMES)):
+            # for act in range(len(NAMES)):
+            for act in index_to_plot:
                 env.settings['Integration']['suffix'] = NAMES[act]
                 state, cons, tcomp = load_state_files(env)
                 STATE.append(state)

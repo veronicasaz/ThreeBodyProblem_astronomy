@@ -16,9 +16,10 @@ import torchvision.models as models
 import gym
 
 from env.ThreeBP_env import ThreeBodyProblem_env
-from TrainRL import train_net, train_net_pretrained
+from TrainRL import train_net
 from TestEnvironment import run_trajectory, load_state_files
-from Plots_TestTrained import plot_reward, plot_balance, plot_test_reward,\
+from Plots_TestTrained import plot_reward, plot_balance, \
+    plot_test_reward,plot_test_reward_multiple,\
     plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp
 
 def create_testing_dataset(env, seeds):
@@ -84,12 +85,17 @@ def load_reward(a, suffix = ''):
                 testreward_r.append(float(j))
             testReward.append(testreward_r)
 
+    trainingTime = []
+    with open(a.settings['Training']['savemodel'] + suffix + "TrainingTime.txt", "r") as f:
+        for j in f.read().split():
+            trainingTime.append(float(j))
+
     HuberLoss = []
 
-    return score, EnergyE, HuberLoss, tcomp, testReward
+    return score, EnergyE, HuberLoss, tcomp, testReward, trainingTime
 
 if __name__ == '__main__':
-    experiment = 3 # number of the experiment to be run
+    experiment = 1.5 # number of the experiment to be run
     seed = 0
 
     if experiment == 0: # Create testing dataset
@@ -108,21 +114,39 @@ if __name__ == '__main__':
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
         # env.settings['Training']['max_episodes'] = 100
         # env.settings['Training']['lr'] = 1e-5
-        train_net_pretrained(model_path, env = env)
+        train_net(model_path_pretrained=model_path, env = env)
+
+    elif experiment == 1.5: # Train model with different seeds
+        env = ThreeBodyProblem_env()
+        seeds_train = 4
+        for i in range(seeds_train):
+            env.settings['Training']['seed_weights'] = i
+            train_net(env = env, suffix = "seed_%i/"%i) # without pretraining
+
+        env.settings['Integration']['subfolder'] =  '2_Training/'
+        TESTREWARD = [] 
+        TRAININGTIME = []
+        for i in range(seeds_train):
+            reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'seed_%i/'%i)
+            TESTREWARD.append(testReward)
+            TRAININGTIME.append(trainingTime)
+
+        plot_test_reward_multiple(env, TESTREWARD, TRAININGTIME)
+
 
     elif experiment == 2:
         # Plot training results
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/' 
-        reward, EnergyError, HuberLoss, tcomp, testReward = load_reward(env, suffix = '')
-        plot_reward(env, reward, EnergyError, HuberLoss)
+        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'seed_0/')
+        # plot_reward(env, reward, EnergyError, HuberLoss)
         # plot_balance(env, reward, EnergyError, tcomp)
-        plot_test_reward(env, testReward)
-        
+        plot_test_reward(env, testReward, trainingTime)
+
     elif experiment == 3: # plot comparison of trianed model with baseline results
-        model = '250'
+        model = '270'
         
-        seeds = np.arange(8)
+        seeds = np.arange(4)
         # Plot evolution for all actions, one initialization
         for i in range(len(seeds)):
             env = ThreeBodyProblem_env()
@@ -135,6 +159,8 @@ if __name__ == '__main__':
             env.settings['Integration']['suffix'] = NAMES[0]
             env.settings['InitialConditions']['seed'] = seeds[i]
             env.settings['Integration']['max_steps'] = 300
+            
+            index_to_plot = [0, 1, 6, 11, 16, 20]
 
             model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
@@ -143,17 +169,19 @@ if __name__ == '__main__':
                 NAMES.append('_action_'+ str(env.actions[act])+'_seed_'+str(seeds[i]))
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = NAMES[act+1]
-                run_trajectory(env, action = act)
+                # run_trajectory(env, action = act)
 
             STATE = []
             CONS = []
             TCOMP = []
-            for act in range(len(NAMES)):
+            for act in index_to_plot:
                 env.settings['Integration']['suffix'] = NAMES[act]
                 state, cons, tcomp = load_state_files(env)
                 STATE.append(state)
                 CONS.append(cons)
                 TCOMP.append(tcomp)
+            TITLES = [TITLES[x] for x in index_to_plot]
+            print(TITLES)
 
             save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
                 str(seeds[i]) + 'Action_comparison_RL.png'
