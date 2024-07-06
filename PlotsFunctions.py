@@ -86,7 +86,7 @@ def plot_planets_distance(ax, x_axis, state, name_planets, labelsize = 12,
         for j in range(i+1, n_planets):
             r2 = state[0:steps, j, 2:5]
             Dist.append(np.linalg.norm(r2-r1, axis = 1))
-            Labels.append('Particle %i-%i'%(i, j))
+            Labels.append('Particle %i-%i'%(i+1, j+1))
         
         size_marker = np.log(m)/30
     for i in range(len(Dist)):

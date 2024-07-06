@@ -162,43 +162,58 @@ def plot_test_reward(a, test_reward, trainingTime):
     # pts = 11
     # ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 1)
     episodes = len(test_reward) 
-    x_episodes = np.arange(episodes)
+    x_episodes = np.arange(episodes-1)
     
     REWARD_avg = []
     REWARD_std = []
     EERROR_avg = []
     EERROR_std = []
+    test_cases = len(np.array(test_reward[0]).reshape((-1, 3)))
     TCOMP_avg = []
     TCOMP_std = []
+
+    REWARD_all = np.zeros((episodes-1, test_cases))
+    EERROR_all = np.zeros((episodes-1, test_cases))
+    TCOMP_all = np.zeros((episodes-1, test_cases))
+   
     EERROR_jump_avg = []
     EERROR_jump_std= []
-    print(np.shape(test_reward))
-    for e in range(episodes):
+    for e in range(episodes-1):
+        # print(e)
         reshaped = np.array(test_reward[e]).reshape((-1, 3))
         REWARD_avg.append(np.mean(reshaped[:, 0]))
         REWARD_std.append(np.std(reshaped[:, 0]))
 
+        # print(e, test_reward[e])
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
-
+        
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
 
+        REWARD_all[e, :] = np.array(np.log10(abs(reshaped[:, 0])))
+        EERROR_all[e, :] = np.array(np.log10(abs(reshaped[:, 1])))
+        TCOMP_all[e, :] = np.array(np.log10(abs(reshaped[:, 2])))
+
     y = [REWARD_avg, EERROR_avg, TCOMP_avg]
-    e = [REWARD_std, EERROR_std, TCOMP_std]
+    err = [REWARD_std, EERROR_std, TCOMP_std]
     for plot in range(3):
         # ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
         #                   alpha = 1, fmt='o')
         y[plot] = np.array(y[plot])
-        e[plot] = np.array(e[plot])
-        ax[plot].plot(x_episodes, y[plot] + e[plot], color = colors[1], \
+        err[plot] = np.array(err[plot])
+        ax[plot].plot(x_episodes, y[plot] + err[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
-        ax[plot].plot(x_episodes, y[plot] - e[plot], color = colors[1], \
+        ax[plot].plot(x_episodes, y[plot] - err[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
         ax[plot].plot(x_episodes, y[plot], color= colors[0], \
-                          alpha = 1, marker = '.')
+                          alpha = 0.2, marker = '.')
         
-    ax[-1].plot(x_episodes, trainingTime, color = colors[0], marker = '.')
+    ax[0].plot(x_episodes, REWARD_all)
+    ax[1].plot(x_episodes, EERROR_all)
+    ax[2].plot(x_episodes, TCOMP_all)
+        
+    ax[-1].plot(x_episodes, trainingTime[:-1], color = colors[0], marker = '.')
     
     def maxN(elements, n):
         a = sorted(elements, reverse=True)[:n]
@@ -207,11 +222,11 @@ def plot_test_reward(a, test_reward, trainingTime):
             print(np.where(elements == a[i])[0])
             index[i] = np.where(elements == a[i])[0][0]
         return index, a
-    index, value = maxN(y[0], 5) 
-    for i in range(len(index)):
-        ax[0].plot([index[i], index[i]], \
-                   [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
-                    value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
+    # index, value = maxN(y[0], 5) 
+    # for i in range(len(index)):
+    #     ax[0].plot([index[i], index[i]], \
+    #                [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
+    #                 value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
     
     for ax_i in ax: 
         ax_i.tick_params(axis='both', which='major', labelsize=fontsize-3)
@@ -222,14 +237,15 @@ def plot_test_reward(a, test_reward, trainingTime):
     ax[1].set_title(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
     # ax[2].set_title(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
     ax[2].set_title(r'$T_{comp}$ (s)', fontsize = fontsize)
+    ax[3].set_title(r'$T_{training}$ (s)', fontsize = fontsize)
     ax[2].set_yscale('symlog', linthresh = 1e-1)
     ax[2].set_yscale('log')
 
     # For hermite 1
-    ax[0].set_ylim([-10, 2])
-    ax[1].set_ylim([-12, -2])
-    ax[2].set_ylim([-15, -0.5])
-    ax[2].set_ylim([0.0001, 0.003])
+    # ax[0].set_ylim([-10, 2])
+    # ax[1].set_ylim([-12, -2])
+    # ax[2].set_ylim([-15, -0.5])
+    # ax[2].set_ylim([0.0001, 0.003])
 
     # For hermite 2
     # ax[0].set_ylim([-10, 4])
@@ -239,7 +255,7 @@ def plot_test_reward(a, test_reward, trainingTime):
 
 
     # For symple 2
-    # ax[0].set_ylim([-30, 5])
+    ax[0].set_ylim([-40, 5])
     # ax[1].set_ylim([-12, 5])
     # ax[2].set_ylim([-30, -0.8])
     # ax[3].set_ylim([0.0001, 0.05])
@@ -461,7 +477,7 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
 
     # Plot distance
     x_axis = np.arange(0, steps)
-    distance = plot_planets_distance(ax3, x_axis, STATES[0]/1.496e11, name_bodies,\
+    distance = plot_planets_distance(ax3, x_axis, STATES[1]/1.496e11, name_bodies,\
                                         steps = steps, labelsize = label_size)
 
     # Plot RL 
@@ -656,7 +672,7 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     steps = len(TCOMP[0])
     Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
 
-    # Group initializations per action type
+    # # Group initializations per action type
     types = len(TCOMP)//len(seeds)
     X = []
     Y = []
@@ -664,35 +680,35 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
         X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
         Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
 
-
-    fig = plt.figure(figsize = (8,8))
-    gs1 = matplotlib.gridspec.GridSpec(2, 1, figure = fig,\
-                                       left=0.18, wspace=0.4, 
-                                       hspace = 0.2, right = 0.99,
-                                        top = 0.97, bottom = 0.11)
+    # fig = plt.figure(figsize = (8,8))
+    # gs1 = matplotlib.gridspec.GridSpec(2, 1, figure = fig,\
+    #                                    left=0.18, wspace=0.4, 
+    #                                    hspace = 0.2, right = 0.99,
+    #                                     top = 0.97, bottom = 0.11)
     
-    order = [3, 1,0, 2]
-    alpha = [0.5, 0.5, 0.9, 0.9]
-    plot_index = [0, 1, 3, 6]
-    dots_to_plot = 100
-    M = np.zeros((len(plot_index), 2))
-    STD = np.zeros((len(plot_index), 2))
-    for i, index in enumerate(plot_index):
-        # ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\
-        #         s = msize, label = labels[index], zorder =order[i])
+    # order = [3, 1,0, 2]
+    # alpha = [0.5, 0.5, 0.9, 0.9]
+    # # plot_index = [0, 1, 3, 6]
+    # plot_index = [0, 1, ]
+    # dots_to_plot = 100
+    # M = np.zeros((len(plot_index), 2))
+    # STD = np.zeros((len(plot_index), 2))
+    # for i, index in enumerate(plot_index):
+    #     # ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\
+    #     #         s = msize, label = labels[index], zorder =order[i])
         
-        M[i, 0] = np.mean(Y[index][:])
-        M[i, 1] = np.mean(X[index][:])
-        STD[i, 0] = np.std(Y[index][:])
-        STD[i, 1] = np.std(X[index][:])
+    #     M[i, 0] = np.mean(Y[index][:])
+    #     M[i, 1] = np.mean(X[index][:])
+    #     STD[i, 0] = np.std(Y[index][:])
+    #     STD[i, 1] = np.std(X[index][:])
 
-    ax1 = fig.add_subplot(gs1[1, 0]) 
-    ax2 = fig.add_subplot(gs1[0, 0])
-    ax1.errorbar(np.arange(len(plot_index)), M[:, 0], STD[:, 0])
-    ax2.errorbar(np.arange(len(plot_index)), M[:, 1], STD[:, 1])
+    # ax1 = fig.add_subplot(gs1[1, 0]) 
+    # ax2 = fig.add_subplot(gs1[0, 0])
+    # ax1.errorbar(np.arange(len(plot_index)), M[:, 0], STD[:, 0])
+    # ax2.errorbar(np.arange(len(plot_index)), M[:, 1], STD[:, 1])
 
-    ax1.set_yscale('log')
-    ax2.set_yscale('log')
+    # ax1.set_yscale('log')
+    # ax2.set_yscale('log')
 
     ###################################################################################3
         
@@ -723,7 +739,7 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
 
     order = [3, 1,0, 2]
     alpha = [0.5, 0.5, 0.9, 0.9]
-    plot_index = [0, 1, 3, 6]
+    plot_index = [0, 1, types//2, types-1]
     dots_to_plot = 100
     for i, index in enumerate(plot_index):
         ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\

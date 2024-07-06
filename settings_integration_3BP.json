@@ -28,28 +28,29 @@
         "state": "cart",
         "state_options_info": ["norm", "cart", "dist"],
         "action": "range", 
-        "number_actions": 6,
+        "number_actions": 20,
 	"range_action": {
 		"Hermite": [1e-4, 1e-1],
 		"Ph4": [1e-4, 1e-1],
 		"Huayno": [1e-5, 1e-1],
-		"Symple": [1e-7, 1e-1]
+		"Symple": [1e-7, 1e-2]
 		},
 	"reward_f": 0,
-        "weights": [1000.0, 50.0, 4.0]
+        "weights": [200.0, 100.0, 4.0]
      },
 
     "Training":
     {
+    	"seed_weights": 0, 
     	"savemodel": "./Training_Results/",
     	"subfolder": "",
     	"suffix":"",
     	"display": true,
-        "max_episodes": 2500,
-        "testdata_size": 5,
+        "max_episodes": 3000,
+        "testdata_size": 10,
         "hidden_layers": 5,
         "neurons": 200,
-        "lr": 1e-4,
+        "lr": 1e-6,
         "batch_size": 128,
         "gamma": 0.99,
         "eps_start": 0.9,

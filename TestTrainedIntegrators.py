@@ -139,21 +139,24 @@ if __name__ == '__main__':
         # train_net()
 
         # From a pretrained model
-        # model = '1184'
+        model = '824_good'
+        # model = '29_good'
         # env = ThreeBodyProblem_env()
-        # model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
-        train_net(model_path_pretrained=False, env = env)
+        model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
+        train_net(model_path_pretrained=model_path, env = env)
 
     elif experiment == 3: # Plot training results for Symple
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/Symple/' 
         env.settings['Integration']['integrator'] = 'Symple'
+        env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
         env._initialize_RL()
         reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '')
         plot_test_reward(env, testReward, trainingTime)
     
     elif experiment == 4: # Plot evolution for all actions, one initialization for symple
-        model = '59'    
+        model = '246'   
+        # model = '824_good'    
         seeds = np.arange(5)
     
         for i in range(len(seeds)):
@@ -192,6 +195,7 @@ if __name__ == '__main__':
                 STATE.append(state)
                 CONS.append(cons)
                 TCOMP.append(tcomp)
+            TITLES = [TITLES[x] for x in index_to_plot]
 
             save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
                 str(seeds[i]) + 'Action_comparison_RL.png'
@@ -232,18 +236,19 @@ if __name__ == '__main__':
 
     elif experiment == 6:
         # Run final energy vs computation time for different cases with symple
-        initializations = 300
+        initializations = 150
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
         
         env.settings['Integration']['subfolder'] = '9_EvsTcomp_Symple/'
         env.settings['Integration']['integrator'] = 'Symple'
+        env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
         env._initialize_RL()
 
         NAMES = []
         TITLES = []
-        model = '24_good'
+        model = '1200'
         model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
 
         # RL
@@ -258,7 +263,9 @@ if __name__ == '__main__':
             run_trajectory(env, action = 'RL', model_path = model_path)
 
 
+        # index_to_plot = [0, 1, 11,  19]
         for act in range(env.settings['RL']['number_actions']):
+        # for act in index_to_plot:
             for ini in range(initializations):
                 print(ini)
                 name = '_action%i_seed%i'%(act, seeds[ini])
@@ -266,9 +273,7 @@ if __name__ == '__main__':
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = name
                 env.settings['InitialConditions']['seed'] = seeds[ini]
-                env.settings['Integration']['max_steps'] = 100
-                env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
-                run_trajectory(env, action = act)
+                # run_trajectory(env, action = act)
 
         STATE = []
         CONS = []
@@ -280,6 +285,8 @@ if __name__ == '__main__':
             CONS.append(cons)
             TCOMP.append(tcomp)
 
+        print("============================")
+        print(NAMES)
         save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
             'Energy_vs_tcomp.png'
         plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, NAMES, seeds, save_path)

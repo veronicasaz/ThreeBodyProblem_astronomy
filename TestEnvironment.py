@@ -96,7 +96,7 @@ def load_state_files(env, namefile = None):
 #     return R
 
 if __name__ == '__main__':
-    experiment = 1 # number of the experiment to be run
+    experiment = 0 # number of the experiment to be run
     seed = 1
             
     if experiment == 0: #  plot trajectory with hermite for a fixed action, many initializations
@@ -118,7 +118,7 @@ if __name__ == '__main__':
             env.settings['InitialConditions']['seed'] = seeds[i]
             env.settings['Integration']['subfolder'] = subfolder
             env.settings['Integration']['suffix'] = name
-            # run_trajectory(env, action = 0)
+            run_trajectory(env, action = 0)
 
         # Load results
         env = ThreeBodyProblem_env()
@@ -143,8 +143,8 @@ if __name__ == '__main__':
         seeds = np.arange(initializations)
         subfolder = "2_RewardStudy/"
         reward_functions = [
-                [0, 1000.0, 50.0, 4.0],
-                [0, 1.0, 100.0, 4.0],
+                [0, 1.0, 50.0, 4.0],
+                [0, 10.0, 100.0, 4.0],
                 [1, 10.0, 100.0, 10.0],
                 [2, 10.0, 100.0, 4.0],
                 [3, 10.0, 0, 4.0]]
