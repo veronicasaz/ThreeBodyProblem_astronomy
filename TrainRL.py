@@ -324,11 +324,15 @@ def train_net(env = None, suffix = '', model_path_pretrained = False):
         action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, 0)
         observation, reward_p, terminated, info = env.step(action.item())
 
+        reward_cumul = 0
         terminated = False
         while terminated == False:
             # Take a step
             action, steps_done = select_action(state, policy_net, [EPS_START, EPS_END, EPS_DECAY], env, device, steps_done)
-            observation, reward_p, terminated, info = env.step(action.item())
+            observation, reward_p_i, terminated, info = env.step(action.item())
+            reward_p = reward_p_i + reward_cumul * env.settings['RL']['cumul_reward_perc']
+            reward_cumul += reward_p
+            # reward_p = reward_p_i 
             save_reward_list.append(reward_p)
             save_EnergyE_list.append(info['Energy_error'])
             save_tcomp_list.append(info['tcomp'])
@@ -388,7 +392,7 @@ def train_net(env = None, suffix = '', model_path_pretrained = False):
                 indx = indx[0]
             max_reward[indx] =  avg_reward
             torch.save(policy_net.state_dict(), env.settings['Training']['savemodel'] +suffix+ 'model_weights'+str(episode_number)+'.pth') # save model
-        if episode_number %100 == 0:
+        if episode_number %10 == 0:
             max_reward = np.ones(10)*-10000 # reset values
 
         # save training

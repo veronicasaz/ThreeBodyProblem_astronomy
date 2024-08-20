@@ -16,8 +16,10 @@ from Plots_TestEnvironment import calculate_errors
 from PlotsFunctions import plot_planets_trajectory, plot_evolution, \
     plot_planets_distance, plot_actions_taken
 
-colors = ['steelblue', 'darkgoldenrod', 'mediumseagreen', 'coral',  \
-        'mediumslateblue', 'deepskyblue', 'navy']
+# colors = [ 'steelblue', 'deepskyblue', 'mediumseagreen', 'coral',  \
+#         'navy', 'mediumslateblue', 'darkgoldenrod','black', 'blue', 'green']
+colors = [ 'steelblue','darkgoldenrod' , 'mediumseagreen', 'coral',  \
+        'navy', 'mediumslateblue', 'deepskyblue','black', 'blue', 'green']
 
 def plot_durations(episode_rewards, episode, show_result=False):
     """
@@ -147,10 +149,10 @@ def plot_test_reward(a, test_reward, trainingTime):
         test_reward: array with each row for each episode and columns: 
             [Reward, Energy error, Computation time]
     """
-    f, ax = plt.subplots(4, 1, figsize = (10,7))
+    fig, ax = plt.subplots(3, 1, figsize = (10,7))
     plt.subplots_adjust(left=0.08, right=0.97, top=0.96, \
                         bottom=0.1, hspace = 0.6)
-    fontsize = 18
+    fontsize = 16
 
     def filter(x, y):
         xlen = 500
@@ -162,15 +164,22 @@ def plot_test_reward(a, test_reward, trainingTime):
     # pts = 11
     # ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 1)
     episodes = len(test_reward) 
+    episodes = 3000
     x_episodes = np.arange(episodes-1)
     
     REWARD_avg = []
     REWARD_std = []
+    REWARD_min = []
+    REWARD_max = []
     EERROR_avg = []
     EERROR_std = []
+    EERROR_min = []
+    EERROR_max = []
     test_cases = len(np.array(test_reward[0]).reshape((-1, 3)))
     TCOMP_avg = []
     TCOMP_std = []
+    TCOMP_min = []
+    TCOMP_max = []
 
     REWARD_all = np.zeros((episodes-1, test_cases))
     EERROR_all = np.zeros((episodes-1, test_cases))
@@ -183,13 +192,19 @@ def plot_test_reward(a, test_reward, trainingTime):
         reshaped = np.array(test_reward[e]).reshape((-1, 3))
         REWARD_avg.append(np.mean(reshaped[:, 0]))
         REWARD_std.append(np.std(reshaped[:, 0]))
+        REWARD_min.append(min(reshaped[:, 0]))
+        REWARD_max.append(max(reshaped[:, 0]))
 
         # print(e, test_reward[e])
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
+        EERROR_min.append(min(np.log10(abs(reshaped[:, 1]))))
+        EERROR_max.append(max(np.log10(abs(reshaped[:, 1]))))
         
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
+        TCOMP_min.append(min(reshaped[:, 2]))
+        TCOMP_max.append(max(reshaped[:, 2]))
 
         REWARD_all[e, :] = np.array(np.log10(abs(reshaped[:, 0])))
         EERROR_all[e, :] = np.array(np.log10(abs(reshaped[:, 1])))
@@ -197,23 +212,31 @@ def plot_test_reward(a, test_reward, trainingTime):
 
     y = [REWARD_avg, EERROR_avg, TCOMP_avg]
     err = [REWARD_std, EERROR_std, TCOMP_std]
+    # err_minmax = [[REWARD_min, REWARD_max], [EERROR_min, EERROR_max], [TCOMP_min, TCOMP_max]]
     for plot in range(3):
         # ax[plot].errorbar(x_episodes, y[plot], e[plot], color = colors[0], \
         #                   alpha = 1, fmt='o')
         y[plot] = np.array(y[plot])
         err[plot] = np.array(err[plot])
+        ax[plot].plot(x_episodes, y[plot], color= colors[0], \
+                          alpha = 0.2, marker = '.')
         ax[plot].plot(x_episodes, y[plot] + err[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
         ax[plot].plot(x_episodes, y[plot] - err[plot], color = colors[1], \
                           alpha = 0.2, marker = '.')
-        ax[plot].plot(x_episodes, y[plot], color= colors[0], \
-                          alpha = 0.2, marker = '.')
         
-    ax[0].plot(x_episodes, REWARD_all)
-    ax[1].plot(x_episodes, EERROR_all)
-    ax[2].plot(x_episodes, TCOMP_all)
+        # ax[plot].plot(x_episodes, y[plot] + np.array(err_minmax[plot][1]), color = colors[2], \
+        #                   alpha = 0.2, marker = '^')
+        # ax[plot].plot(x_episodes, y[plot] - np.array(err_minmax[plot][0]), color = colors[2], \
+        #                   alpha = 0.2, marker = '^')
         
-    ax[-1].plot(x_episodes, trainingTime[:-1], color = colors[0], marker = '.')
+        
+    # ax[0].plot(x_episodes, REWARD_all)
+    # ax[1].plot(x_episodes, EERROR_all)
+    # ax[2].plot(x_episodes, TCOMP_all)
+        
+    # ax[-1].plot(x_episodes, trainingTime[:-1], color = colors[0], marker = '.')
+    fig.suptitle('Training time: %.2f min'%(trainingTime[-1]/60), y = 0.99, x = 0.23, fontsize = fontsize -3)
     
     def maxN(elements, n):
         a = sorted(elements, reverse=True)[:n]
@@ -222,11 +245,12 @@ def plot_test_reward(a, test_reward, trainingTime):
             print(np.where(elements == a[i])[0])
             index[i] = np.where(elements == a[i])[0][0]
         return index, a
-    # index, value = maxN(y[0], 5) 
-    # for i in range(len(index)):
-    #     ax[0].plot([index[i], index[i]], \
-    #                [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
-    #                 value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
+    index, value = maxN(y[0], 5) 
+    print(index)
+    for i in range(len(index)):
+        ax[0].plot([index[i], index[i]], \
+                   [min(np.array(REWARD_avg)-np.array(REWARD_std)),\
+                    value[i]], linestyle = '-', marker = 'x', linewidth = 2, color = 'red')
     
     for ax_i in ax: 
         ax_i.tick_params(axis='both', which='major', labelsize=fontsize-3)
@@ -234,10 +258,12 @@ def plot_test_reward(a, test_reward, trainingTime):
 
     ax[-1].set_xlabel('Episode', fontsize = fontsize)
     ax[0].set_title('R', fontsize = fontsize)
+    # ax[0].set_yscale('symlog', linthresh = 1e1)
+    # ax[0].set_ylim((-1e3, 5))
     ax[1].set_title(r'$log_{10}(\vert \Delta E\vert)$', fontsize = fontsize)
     # ax[2].set_title(r'$log_{10}(\vert \Delta E\vert) - log_{10}(\vert \Delta E_{prev}\vert)$', fontsize = fontsize)
     ax[2].set_title(r'$T_{comp}$ (s)', fontsize = fontsize)
-    ax[3].set_title(r'$T_{training}$ (s)', fontsize = fontsize)
+    # ax[3].set_title(r'$T_{training}$ (s)', fontsize = fontsize)
     ax[2].set_yscale('symlog', linthresh = 1e-1)
     ax[2].set_yscale('log')
 
@@ -248,14 +274,14 @@ def plot_test_reward(a, test_reward, trainingTime):
     # ax[2].set_ylim([0.0001, 0.003])
 
     # For hermite 2
-    # ax[0].set_ylim([-10, 4])
+    ax[0].set_ylim([-10, 10])
     # ax[1].set_ylim([-10, 0])
     # ax[2].set_ylim([-15, -0.5])
     # ax[3].set_ylim([0.0001, 0.003])
 
 
     # For symple 2
-    ax[0].set_ylim([-40, 5])
+    # ax[0].set_ylim([-40, 5])
     # ax[1].set_ylim([-12, 5])
     # ax[2].set_ylim([-30, -0.8])
     # ax[3].set_ylim([0.0001, 0.05])
@@ -360,7 +386,7 @@ def plot_test_reward_multiple(a, TESTREWARD, TRAININGTIME):
     ax[2].set_yscale('log')
 
     # For hermite 1
-    ax[0].set_ylim([-10, 2])
+    # ax[0].set_ylim([-10, 2])
     ax[1].set_ylim([-12, -2])
     ax[2].set_ylim([-15, -0.5])
     ax[2].set_ylim([0.0001, 0.003])
@@ -445,7 +471,7 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
 
     # Setup plot
     fig = plt.figure(figsize = (12,18))
-    label_size = 24
+    label_size = 20
     linewidth = 2.5
     linestyle = ['--', '-', '-', '-', '-', '-', '-', '-', '-']
     gs1 = matplotlib.gridspec.GridSpec(11, 2, 
@@ -476,7 +502,7 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
         axis[case_i].set_ylabel('y (au)', fontsize = label_size)
 
     # Plot distance
-    x_axis = np.arange(0, steps)
+    x_axis = np.arange(0, steps) * env.settings['Integration']['check_step']
     distance = plot_planets_distance(ax3, x_axis, STATES[1]/1.496e11, name_bodies,\
                                         steps = steps, labelsize = label_size)
 
@@ -490,10 +516,15 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
     # Simple
     plot_actions_taken(ax4, x_axis, action[:, 0])
     ax4.set_ylim([-1, n_actions+1])
+    labels = np.arange(n_actions)[::3]
     ax4.set_yticks(np.arange(n_actions)[::3])
+    LABELS = []
+    for label in labels:
+        LABELS.append('%i: %.0E'%(label, env.actions[label]))
+    ax4.set_yticklabels(LABELS)
     # Dual axis
-    ax42 = ax4.twinx()
-    # ax42.set_yticks(np.arange(n_actions)[::3])
+    # ax42 = ax4.twinx()
+    # ax42.set_yticks(env.actions[::3])
     # ax42.set_yticklabels(y_axis[::3])
     # ax42.yaxis.set_major_formatter(FormatStrFormatter('%.2E'))
 
@@ -508,7 +539,7 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
         plot_evolution(ax6, x_axis, Energy_error[:, case], label = Titles[case], \
                        colorindex = case, linestyle = linestyle[case], linewidth = linewidth)
         
-    ax6.set_xlabel('Step', fontsize = label_size)
+    ax6.set_xlabel('Time (yr)', fontsize = label_size)
 
     ax3.set_ylabel(r'$\vert\vert \vec r_i - \vec r_j\vert\vert$ (au)', fontsize = label_size)
     ax5.set_ylabel(r'Reward', fontsize = label_size)
@@ -536,14 +567,14 @@ def plot_trajs(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index = 'b
         X_vert.append(index_x)
     def flatten(xss):
         return [x for xs in xss for x in xs]
-    X_vert = flatten(X_vert)
+    X_vert = flatten(X_vert) 
     
     for X_D in X_vert:
         for ax_vert in [ax3, ax4, ax5]:
-            ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
+            ax_vert.axvline(x=X_D* env.settings['Integration']['check_step'], ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
                     clip_on = False, alpha = 0.2, linestyle = '--')
         for ax_vert in [ax6]:
-            ax_vert.axvline(x=X_D, ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
+            ax_vert.axvline(x=X_D* env.settings['Integration']['check_step'], ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
                         clip_on = False, alpha = 0.2, linestyle = '--')
 
     plt.savefig(save_path, dpi = 150)
@@ -658,7 +689,7 @@ def plot_trajs_RL(env, STATES, CONS, TCOMP, Titles, save_path, plot_traj_index =
     plt.savefig(save_path, dpi = 150)
     plt.show()
 
-def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
+def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path, RL_number = 1):
     """
     plot_energy_vs_tcomp: plot energy vs computation time at the end of the simulation for many initializations
     INPUTS:
@@ -680,38 +711,7 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
         X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
         Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
 
-    # fig = plt.figure(figsize = (8,8))
-    # gs1 = matplotlib.gridspec.GridSpec(2, 1, figure = fig,\
-    #                                    left=0.18, wspace=0.4, 
-    #                                    hspace = 0.2, right = 0.99,
-    #                                     top = 0.97, bottom = 0.11)
     
-    # order = [3, 1,0, 2]
-    # alpha = [0.5, 0.5, 0.9, 0.9]
-    # # plot_index = [0, 1, 3, 6]
-    # plot_index = [0, 1, ]
-    # dots_to_plot = 100
-    # M = np.zeros((len(plot_index), 2))
-    # STD = np.zeros((len(plot_index), 2))
-    # for i, index in enumerate(plot_index):
-    #     # ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\
-    #     #         s = msize, label = labels[index], zorder =order[i])
-        
-    #     M[i, 0] = np.mean(Y[index][:])
-    #     M[i, 1] = np.mean(X[index][:])
-    #     STD[i, 0] = np.std(Y[index][:])
-    #     STD[i, 1] = np.std(X[index][:])
-
-    # ax1 = fig.add_subplot(gs1[1, 0]) 
-    # ax2 = fig.add_subplot(gs1[0, 0])
-    # ax1.errorbar(np.arange(len(plot_index)), M[:, 0], STD[:, 0])
-    # ax2.errorbar(np.arange(len(plot_index)), M[:, 1], STD[:, 1])
-
-    # ax1.set_yscale('log')
-    # ax2.set_yscale('log')
-
-    ###################################################################################3
-        
     fig = plt.figure(figsize = (8,8))
     gs1 = matplotlib.gridspec.GridSpec(2, 2, figure = fig, width_ratios = (3, 1), height_ratios = (1, 3), \
                                        left=0.18, wspace=0.4, 
@@ -721,10 +721,12 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     msize = 30
     alphavalue = 0.5
     alphavalue2 = 0.9
-    markers = ['s', 'o', 'x', 's', 'o']
-    labels = ['RL']
-    for i in range(types-1):
-        labels.append(r'$\mu$ = %.1E'%env.actions[i])
+    markers = ['o', 'x', '^', 's', 'o', 's', 'o', 'x', 's', 'o', 's', 'o', 'x', 's', 'o']
+    # labels = [i[10] for i in Titles[0:RL_number]]
+    labels = Titles
+    # for i in range(types-RL_number):
+    #     labels.append(r'$\mu$ = %.1E'%env.actions[i])
+    # print(labels)
 
     ax1 = fig.add_subplot(gs1[1, 0]) 
     ax2 = fig.add_subplot(gs1[0, 0])
@@ -734,20 +736,23 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     # binsx = np.logspace(np.log10(2e-2),np.log10(0.4), 50)
     # binsy = np.logspace(np.log10(1e-14),np.log10(1e-1), 50)
 
-    binsx = np.logspace(np.log10(2e-2),np.log10(10.0), 50)
-    binsy = np.logspace(np.log10(1e-14),np.log10(1e4), 50)
+    binsx = np.logspace(np.log10(2e-2),np.log10(10.0), 70)
+    binsy = np.logspace(np.log10(1e-14),np.log10(1e4), 70)
 
-    order = [3, 1,0, 2]
-    alpha = [0.5, 0.5, 0.9, 0.9]
-    plot_index = [0, 1, types//2, types-1]
+    # order = [3, 1,0, 2]
+    alpha =  [0.5, 0.5, 0.5]+[0.8]*RL_number
+    # plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-2,(types-RL_number)//2+RL_number+1, (types)-1]
+    plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-2, (types)-1]
+    # plot_index = [i for i in range(RL_number)] + [RL_number, 7+RL_number, (types)-1]
+    order = np.arange(len(plot_index))
     dots_to_plot = 100
-    for i, index in enumerate(plot_index):
-        ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alphavalue, marker = markers[i],\
-                s = msize, label = labels[index], zorder =order[i])
+    for i, index in enumerate(reversed((plot_index))):
+        ax1.scatter(Y[index][0:dots_to_plot], X[index][0:dots_to_plot], color = colors[i], alpha = alpha[i], marker = markers[i],\
+                s = msize, label = labels[index], zorder =int(order[i]))
         ax2.hist(Y[index][0:dots_to_plot], bins = binsx, color = colors[i],  alpha = alpha[i], edgecolor=colors[i], \
-                 linewidth=1.2, zorder =order[i])
+                 linewidth=2.0, zorder = int(order[i]), histtype='barstacked')
         ax3.hist(X[index][0:dots_to_plot], bins = binsy, color = colors[i], alpha = alpha[i], orientation='horizontal',\
-                 edgecolor=colors[i], linewidth=1.2, zorder =order[i])
+                 edgecolor=colors[i], linewidth=2.0, zorder = int(order[i]), histtype='barstacked')
     
     labelsize = 17
     ax1.legend(fontsize = labelsize-3)
@@ -761,10 +766,10 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path):
     ax2.set_xscale('log')
 
     # For hermite
-    # ax1.set_xlim([2e-2, 0.4])
+    # ax1.set_xlim([8e-2, 1.0])
+    # ax2.set_xlim([8e-2, 1.0])
     # ax1.set_ylim([1e-14, 1e0])
-    # ax2.set_xlim([2e-2, 0.4])
-    # ax3.set_ylim([1e-14, 1e1])
+    # ax3.set_ylim([1e-14, 1e0])
 
     # For symple
     # ax1.set_xlim([2e-2, 0.4])
@@ -839,8 +844,9 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
     ax1.set_yscale('log')
     ax1.tick_params(axis='both', which='major', labelsize=labelsize-2)
 
+    
     ax1.set_xscale('log')
-    ax1.set_xlim([0.028, 1.0])
+    ax1.set_xlim([0.08, 70.0])
     ax1.set_ylim([1e-14, 1e5])
     
     plt.savefig(save_path, dpi = 100)
@@ -867,7 +873,7 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
                                        hspace = 0.5, right = 0.99,
                                         top = 0.97, bottom = 0.11)
 
-    x_axis = np.arange(0, steps, 1)
+    x_axis = np.arange(0, steps, 1)* env.settings['Integration']['check_step']
     labelsize = 16
     AX = []
 
@@ -883,15 +889,21 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
     lines = ['-', '--', ':', '-.', '-', '--', ':', '-.' ]
     linestyle = '-'
 
-
+    n_actions = env.settings['RL']['number_actions']
     for z in range(len(I)):
         ax1 = fig.add_subplot(gs1[z+1, 0]) # cartesian symple
         ax1.set_title(I[z], fontsize = labelsize+3)
         print(np.shape(x_axis), np.shape(action[:, z]))
         plot_actions_taken(ax1, x_axis, action[:, z])
-        ax1.set_ylim([-1, 6])
+        ax1.set_ylim([-1, n_actions +1])
         ax1.set_ylabel('Action taken', fontsize = labelsize+1)
-        ax1.set_yticks(np.arange(0, 6))
+        # ax1.set_yticks(np.arange(0,  env.settings['RL']['number_actions']+1))
+        labels = np.arange(n_actions)[::3]
+        ax1.set_yticks(np.arange(n_actions)[::3])
+        LABELS = []
+        for label in labels:
+            LABELS.append('%i: %.0E'%(label, env.actions[label]))
+        ax1.set_yticklabels(LABELS)
         ax1.tick_params(axis='both', which='major', labelsize=labelsize)
         AX.append(ax1)
 
@@ -903,7 +915,7 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
     ax2.set_ylabel('Energy error',  fontsize = labelsize+1)
     ax2.tick_params(axis='both', which='major', labelsize=labelsize)
     ax2.set_yscale('log')
-    ax2.set_xlabel("Steps",fontsize = labelsize+1)
+    ax2.set_xlabel("Time (yr)",fontsize = labelsize+1)
     AX.append(ax2)
 
     #  Draw vertical lines for close encounters
@@ -916,11 +928,11 @@ def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
     X_vert = flatten(X_vert)
     for ax_vert in AX[0:-1]:
         for X_D in X_vert:
-            ax_vert.axvline(x=X_D, ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
+            ax_vert.axvline(x=X_D* env.settings['Integration']['check_step'], ymin=-1.2, ymax=1, c= 'k', lw =2, zorder = 0, \
                         clip_on = False, alpha = 0.2, linestyle = '--')
     for ax_vert in [AX[-1]]:
         for X_D in X_vert:
-            ax_vert.axvline(x=X_D, ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
+            ax_vert.axvline(x=X_D* env.settings['Integration']['check_step'], ymin=0, ymax=1, c= 'k', lw =2, zorder = 0,\
                          clip_on = False, alpha = 0.2, linestyle = '--')
     
     plt.savefig(save_path, dpi = 100)

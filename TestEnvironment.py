@@ -96,7 +96,7 @@ def load_state_files(env, namefile = None):
 #     return R
 
 if __name__ == '__main__':
-    experiment = 0 # number of the experiment to be run
+    experiment = 1 # number of the experiment to be run
     seed = 1
             
     if experiment == 0: #  plot trajectory with hermite for a fixed action, many initializations
@@ -138,21 +138,23 @@ if __name__ == '__main__':
     
 
     elif experiment == 1: # multiple reward functions, plot function shape
-        steps = 150
+        # steps = 150
         initializations = 30
         seeds = np.arange(initializations)
         subfolder = "2_RewardStudy/"
         reward_functions = [
-                [0, 1.0, 50.0, 4.0],
-                [0, 10.0, 100.0, 4.0],
-                [1, 10.0, 100.0, 10.0],
-                [2, 10.0, 100.0, 4.0],
-                [3, 10.0, 0, 4.0]]
+                [5, 3000.0, 0.0, 4.0],
+                [5, 1000.0, 0.0, 4.0],
+                [5, 5000.0, 0, 4.0],
+                [3, 1.0, 0.0, 4.0],
+                [3, 100.0, 0.0, 4.0]
+                ]
         
         # Run 
         NAMES = []
         env = ThreeBodyProblem_env()
         for r_i in range(len(reward_functions)):
+        # for r_i in range(1):
             for i in range(initializations): # random actions
                 print(seeds[i])
                 name = 'R_%i_traj_initialization_%i'%(r_i, i)

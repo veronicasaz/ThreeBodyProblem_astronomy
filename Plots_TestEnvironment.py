@@ -34,6 +34,9 @@ def calculate_errors(states, cons, tcomp):
     """
     cases = len(states)
     steps = np.shape(cons[0][:, 0])[0]
+    print(steps)
+    print(len(cons))
+    print(np.shape(cons[0]))
 
     # Calculate the energy errors
     R = np.zeros((steps, cases))
@@ -41,10 +44,10 @@ def calculate_errors(states, cons, tcomp):
     T_c = np.zeros((steps, cases))
     Action = np.zeros((steps, cases))
     for i in range(cases):
-        R[:, i] = cons[i][:, 1]
-        E[:, i] = abs(cons[i][:, 2]) # absolute relative energy error
-        T_c[:, i] = tcomp[i][:] # add individual computation times
-        Action[:, i] = cons[i][:, 0]
+        R[:, i] = cons[i][0:steps, 1]
+        E[:, i] = abs(cons[i][0:steps, 2]) # absolute relative energy error
+        T_c[:, i] = tcomp[i][0:steps] # add individual computation times
+        Action[:, i] = cons[i][0:steps, 0]
 
     return E, T_c, R, Action
 
@@ -157,7 +160,7 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
     labelsize = 16
     cm = plt.cm.get_cmap('RdYlBu')    
 
-    def process_quantities(E, R, action):
+    def process_quantities(E, R, action, TCOMP):
         """
         change shape to plot of energy error, reward and actions
         INPUTS:
@@ -171,16 +174,14 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
             z: actions taken
         """
         x = E.flatten()
-        x2 = np.zeros(np.shape(E))
-        x2[1:,:] = -(np.log10(abs(E[1:, :]+1e-15)) - np.log10(abs(E[0:-1, :]+1e-15)))
-        x2 = x2.flatten()
         y = R.flatten()
+        k = TCOMP.flatten()
 
         index = np.where(y == 0)[0]
 
         x = np.delete(x, index)
-        x2 = np.delete(x2, index)
         y = np.delete(y, index)
+        k = np.delete(k,  index)
 
         action = action.flatten()
         action = np.delete(action, index)
@@ -188,12 +189,11 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
         for i in range(len(action)):
             z[i] = env.actions[int(action[i])]
 
-        print(len(x), len(y), len(z), len(x2))
-        return x, x2, y, z
+        return x, y, k, z
 
     if plot_one == True:
         fig = plt.figure(figsize = (9,10))
-        gs1 = matplotlib.gridspec.GridSpec(2, 2, width_ratios=[1,0.05],
+        gs1 = matplotlib.gridspec.GridSpec(2, 2,width_ratios=[1,0.05],
                                     left=0.12, wspace=0.1, hspace = 0.2, right = 0.88,
                                     top = 0.96, bottom = 0.08)
 
@@ -201,18 +201,19 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
         ax = fig.add_subplot(gs1[0, 0]) 
         ax2 = fig.add_subplot(gs1[1, 0]) 
         AX = [[ax, ax2]]
-        ax.set_title(r'Type %i, $W_1 = %i$, $W_2 = %i$, $W_3 = %i$'%(reward_functions[0][0],\
+        ax.set_title(r'Type %i; $W_1 = %i$, $W_3 = %i$'%(reward_functions[0][0]%5,\
                                                                      reward_functions[0][1],\
-                                                                     reward_functions[0][2],\
+                                                                    #  reward_functions[0][2],\
                                                                      reward_functions[0][3]),
                                                                      fontsize = labelsize+1)
         
-        x, x2, y, z = process_quantities(Energy_error, R, action)
+        x, y, k, z = process_quantities(Energy_error, R, action, T_comp)
         sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-        ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-        ax.set_ylim([-100, 100])
+        ax2.scatter(k, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+        ax.set_ylim([-20, 5])
 
     else:     
+        labelsize = 20
         fig = plt.figure(figsize = (15,17))
         gs1 = matplotlib.gridspec.GridSpec(4, 3, width_ratios=[1,1,0.05],
                                     left=0.1, wspace=0.4, hspace = 0.4, right = 0.9,
@@ -227,31 +228,45 @@ def plot_rewards_multiple(env, STATES, CONS, TCOMP, reward_functions, \
             index_0 = r_i*initializations
             print("=====================")
             print(initializations, Energy_error[0:10, index_0:index_0+initializations])
-            x, x2, y, z = process_quantities(Energy_error[:, index_0:index_0+initializations], \
+            x, y, k, z = process_quantities(Energy_error[:, index_0:index_0+initializations], \
                                              Reward[:, index_0:index_0+initializations], \
-                                             actions[:, index_0:index_0+initializations])
+                                             actions[:, index_0:index_0+initializations],\
+                                             T_comp[:, index_0:index_0+initializations])
             
             sc = ax.scatter(x, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-            ax2.scatter(x2, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
-            ax.set_title(r'Type %i, $W_1 = %i$, $W_2 = %i$, $W_3 = %i$'%(reward_functions[r_i][0],\
+            ax2.scatter(k, y, c = z, cmap = cm, s = 10, norm=matplotlib.colors.LogNorm())
+            if reward_functions[r_i][0] == 5: 
+                typenumber = 1
+            else:
+                typenumber= 2
+
+            ax.set_title(r'Type %i; $W_1 = %i$, $W_3 = %i$'%(typenumber,\
                                                                      reward_functions[r_i][1],\
-                                                                     reward_functions[r_i][2],\
+                                                                    #  reward_functions[r_i][2],\
                                                                      reward_functions[r_i][3]),
                                                                      fontsize = labelsize)
-        AX[0][0].set_ylim([-100, 100])
-        AX[1][0].set_ylim([-100, 100])
-        AX[2][0].set_ylim([-100, 200])
-    axbar = plt.subplot(gs1[:,-1]  )
-        
+        AX[0][0].set_ylim([-10, 5])
+        AX[1][0].set_ylim([-100, 6])
+        AX[2][0].set_ylim([0, 20])
+        AX[0][1].set_ylim([-10, 5])
+        AX[1][1].set_ylim([-100, 6])
+        AX[2][1].set_ylim([0, 20])
+        # AX[3][0].set_ylim([-50, 6])
+    
+    axbar = plt.subplot(gs1[:,-1]  )    
 
     for a_i in range(len(AX)):
         AX[a_i][0].set_xlabel(r'$\Delta E_i$',  fontsize = labelsize+2)
-        AX[a_i][1].set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize+2)
+        # AX[a_i][1].set_xlabel(r'$\log(\vert \Delta E_{i-1}\vert )- log(\vert \Delta E_{i}\vert )$',  fontsize = labelsize+2)
+        AX[a_i][1].set_xlabel(r'$T_{comp}$ (s)',  fontsize = labelsize+2)
         AX[a_i][0].set_ylabel(r'Reward ($R$)',  fontsize = labelsize+2)
         AX[a_i][1].set_ylabel(r'Reward ($R$)',  fontsize = labelsize+2)
+        
         AX[a_i][0].set_xscale('log')
-        AX[a_i][1].set_xscale('symlog', linthresh = 1e-3)
-        AX[a_i][1].set_yscale('symlog', linthresh = 1)
+        # AX[a_i][0].set_yscale('symlog', linthresh = 1)
+        AX[a_i][1].set_xscale('log')
+        # AX[a_i][1].set_yscale('symlog', linthresh = 1)
+        
         AX[a_i][0].tick_params(axis='both', which='major', labelsize=labelsize-2)
         AX[a_i][1].tick_params(axis='both', which='major', labelsize=labelsize-2)
     
