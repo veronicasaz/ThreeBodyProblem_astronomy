@@ -140,11 +140,12 @@ if __name__ == '__main__':
         # train_net()
 
         # From a pretrained model
-        model = '267'
-        # model = '12'
+        # model = '267'
+        model = '1444'
+        # model = '495'
         # env = ThreeBodyProblem_env()
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
-        train_net(model_path_pretrained=model_path, env = env, suffix = "currentTraining2/")
+        train_net(model_path_pretrained=False, env = env, suffix = "currentTraining/")
         # train_net(model_path_pretrained=model_path, env = env, suffix = "15_largerNet/1/")
 
     elif experiment == 3: # Plot training results for Symple
@@ -153,14 +154,14 @@ if __name__ == '__main__':
         env.settings['Integration']['integrator'] = 'Symple'
         env.settings['Training']["savemodel"] = "./Training_Results_Symple/"
         env._initialize_RL()
-        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '11_nopretraining/')
-        # reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'currentTraining/')
+        # reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '11_nopretraining/')
+        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'currentTraining/')
         plot_test_reward(env, testReward, trainingTime)
     
     elif experiment == 4: # Plot evolution for all actions, one initialization for symple
         # model = '423'  
         # model = '267_pretrained'   
-        model = '347'    
+        model = '70'    
         seeds = np.arange(7)
     
         for i in range(len(seeds)):
@@ -180,14 +181,14 @@ if __name__ == '__main__':
 
             index_to_plot = [0, 1, 3, 5, 8, 10]
 
-            model_path = env.settings['Training']['savemodel'] +'currentTraining2/model_weights' + model +'.pth'
+            model_path = env.settings['Training']['savemodel'] +'currentTraining/model_weights' + model +'.pth'
             run_trajectory(env, action = 'RL', model_path = model_path)
             
             for act in range(env.settings['RL']['number_actions']):
                 NAMES.append('_action_'+ str(env.actions[act])+'_seed_'+str(seeds[i]))
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = NAMES[act+1]
-                run_trajectory(env, action = act)
+                # run_trajectory(env, action = act)
 
             STATE = []
             CONS = []
@@ -240,7 +241,7 @@ if __name__ == '__main__':
 
     elif experiment == 6:
         # Run final energy vs computation time for different cases with symple
-        initializations = 10
+        initializations = 50
         seeds = np.arange(initializations)
 
         env = ThreeBodyProblem_env()
@@ -253,7 +254,7 @@ if __name__ == '__main__':
         NAMES = []
         TITLES = []
         # model = '1949'
-        model = '267_pretrained'
+        model = '70'
         model_path = env.settings['Training']['savemodel'] +'model_weights' + model +'.pth'
         env.settings['Integration']['max_error_accepted'] = 1e10 # large value to not stop the simulation
         env.settings['Training']['display'] = False

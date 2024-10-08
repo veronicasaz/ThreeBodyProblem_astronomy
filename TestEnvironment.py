@@ -103,7 +103,6 @@ if __name__ == '__main__':
         cases = 6
         action = 0
         steps = 100
-        # seeds = np.random.randint(10000, size = cases)
         seeds = np.arange(cases)
         subfolder = '1_Initializations/'
 
@@ -138,7 +137,6 @@ if __name__ == '__main__':
     
 
     elif experiment == 1: # multiple reward functions, plot function shape
-        # steps = 150
         initializations = 30
         seeds = np.arange(initializations)
         subfolder = "2_RewardStudy/"
@@ -154,7 +152,6 @@ if __name__ == '__main__':
         NAMES = []
         env = ThreeBodyProblem_env()
         for r_i in range(len(reward_functions)):
-        # for r_i in range(1):
             for i in range(initializations): # random actions
                 print(seeds[i])
                 name = 'R_%i_traj_initialization_%i'%(r_i, i)
@@ -166,7 +163,7 @@ if __name__ == '__main__':
                 env.settings['RL']['reward_f'] = reward_functions[r_i][0]
                 env.settings['RL']['weights'] = reward_functions[r_i][1:]
                 env._initialize_RL()
-                run_trajectory(env, action = 'random')
+                # run_trajectory(env, action = 'random')
 
             for i in range(initializations): # same action per initialization
                 print(initializations + i)
@@ -181,7 +178,7 @@ if __name__ == '__main__':
                 act = np.random.randint(len(env.actions))
                 print(act)
                 env._initialize_RL()
-                run_trajectory(env, action = act)
+                # run_trajectory(env, action = act)
 
 
         # Load results

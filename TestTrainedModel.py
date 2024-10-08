@@ -20,7 +20,7 @@ from TrainRL import train_net
 from TestEnvironment import run_trajectory, load_state_files
 from Plots_TestTrained import plot_reward, plot_balance, \
     plot_test_reward,plot_test_reward_multiple,\
-    plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp
+    plot_trajs,  plot_trajs_RL, plot_energy_vs_tcomp, plot_energy_vs_tcomp_compar
 
 def create_testing_dataset(env, seeds):
     """
@@ -111,19 +111,15 @@ if __name__ == '__main__':
 
 
         # From pretrained model
-        # model = '173_good'
         model = '1444_pretrained'
-        # model = '357_pretrained'
         env = ThreeBodyProblem_env()
         model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
-        # env.settings['Training']['max_episodes'] = 100
         env.settings['Training']['lr'] = 1e-5
-        # train_net(model_path_pretrained=model_path, env = env, suffix = "currentTraining/")
         train_net(model_path_pretrained=model_path, env = env, suffix = "retrained/")
 
-    elif experiment == 1.5: # Train model with different seeds
+    elif experiment == 2: # Train model with different seeds
         env = ThreeBodyProblem_env()
-        seeds_train = 4
+        seeds_train = 3
         for i in range(seeds_train):
             env.settings['Training']['seed_weights'] = i
             # train_net(env = env, suffix = "seed_%i/"%i) # without pretraining
@@ -131,8 +127,7 @@ if __name__ == '__main__':
         env.settings['Integration']['subfolder'] =  '2_Training/'
         TESTREWARD = [] 
         TRAININGTIME = []
-        # for i in range(seeds_train):
-        for i in range(3):
+        for i in range(seeds_train):
             reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'seed_%i/'%i)
             TESTREWARD.append(testReward)
             TRAININGTIME.append(trainingTime)
@@ -140,19 +135,16 @@ if __name__ == '__main__':
         plot_test_reward_multiple(env, TESTREWARD, TRAININGTIME)
 
 
-    elif experiment == 2:
+    elif experiment == 3:
         # Plot training results
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] =  '2_Training/' 
-        # reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = 'retrained/')
-        # reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '25_from24/1444_rl8!!/')
-        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '24_biggerNet/seed_1/')
+        reward, EnergyError, HuberLoss, tcomp, testReward, trainingTime = load_reward(env, suffix = '24_biggerNet!!!/seed_1/')
         plot_reward(env, reward, EnergyError, HuberLoss)
         # plot_balance(env, reward, EnergyError, tcomp)
-        # plot_test_reward(env, testReward, trainingTime)
+        plot_test_reward(env, testReward, trainingTime)
 
-    elif experiment == 3: # plot comparison of trianed model with baseline results
-        # model = '1092_good'
+    elif experiment == 4: # plot comparison of trained model with baseline results
         model = '11'
         
         seeds = np.arange(7)
@@ -169,21 +161,16 @@ if __name__ == '__main__':
             env.settings['InitialConditions']['seed'] = seeds[i]
             env.settings['Integration']['max_steps'] = 300
             
-            # index_to_plot = [0, 1, 6, 11, 16, 20]
             index_to_plot = [0, 1,3,5,  8, 10]
 
-            # model_path = env.settings['Training']['savemodel'] +'model_weights' +model +'.pth'
-            # model_path = env.settings['Training']['savemodel'] +'25_from24/1444_rl8/model_weights88.pth'
             model_path = env.settings['Training']['savemodel'] +'25_from24/1444_rl5e-8/model_weights184.pth'
-            
-
             run_trajectory(env, action = 'RL', model_path = model_path)
             
             for act in range(env.settings['RL']['number_actions']):
                 NAMES.append('_action_'+ str(env.actions[act])+'_seed_'+str(seeds[i]))
                 TITLES.append(r'%i: $\mu$ = %.1E'%(act, env.actions[act]))
                 env.settings['Integration']['suffix'] = NAMES[act+1]
-                # run_trajectory(env, action = act)
+                run_trajectory(env, action = act)
 
             STATE = []
             CONS = []
@@ -201,8 +188,8 @@ if __name__ == '__main__':
                 str(seeds[i]) + 'Action_comparison_RL.png'
             plot_trajs(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index=[0,1])
 
-    elif experiment == 4: 
-        # Plot evolution for many RL models
+    elif experiment == 5: 
+        # Plot evolution for many RL models to choose best
         env = ThreeBodyProblem_env()
         env.settings['Integration']['subfolder'] = '4_ManyRLmodelsRL/'
         env.settings['InitialConditions']['seed'] = 5
@@ -210,7 +197,6 @@ if __name__ == '__main__':
         NAMES = []
         TITLES = []
 
-        # RL_models = ['2080', '2090', '2100', '2110', '2120']
         RL_models = ['80_good', '270_good', '490_good', '2090_good']
         for act in range(len(RL_models)):
             NAMES.append('_actionRL_'+ str(RL_models[act]))
@@ -234,11 +220,9 @@ if __name__ == '__main__':
             'Action_comparison_RL.png'
         plot_trajs_RL(env, STATE, CONS, TCOMP, TITLES, save_path, plot_traj_index='bestworst')
 
-    elif experiment == 5:
+    elif experiment == 6:
         # Run final energy vs computation time for different cases
         initializations = 100
-        # model=  '270_good'
-        # model = '80_good'
         model = '357_pretrained'
         seeds = np.arange(initializations)
 
@@ -283,7 +267,7 @@ if __name__ == '__main__':
         plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, NAMES, seeds, save_path)
 
 
-    elif experiment == 6:
+    elif experiment == 7:
         # Run final energy vs computation time for different cases
         initializations = 100
         seeds = np.arange(initializations)
@@ -293,14 +277,7 @@ if __name__ == '__main__':
 
         NAMES = []
         TITLES = []
-        # MODELS = ['seed_1/model_weights1608', 'seed_1/model_weights1444','seed_2/model_weights357','seed_2/model_weights818']
-        # MODELS = ['24_biggerNet/seed_1/model_weights1444']
-        # MODELS = ['25_from24/1444_rl5e-8/model_weights184']
         MODELS = ['25_from24/1444_rl8!!/model_weights88']
-                    # '25_from24/1444_rl7_differentsettings/model_weights20',
-                    # 
-                    # '25_from24/1444_rl6/model_weights4']
-                #   '24_biggerNet/seed_2/model_weights357','24_biggerNet/seed_2/model_weights818']
         MODELS_title = ['1444-88', '1444', '1444-88', '1444-20', '1444-4']
 
         # RL
@@ -338,4 +315,7 @@ if __name__ == '__main__':
 
         save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
             'Energy_vs_tcomp.png'
-        plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, TITLES, seeds, save_path, RL_number=len(MODELS))
+        # plot_energy_vs_tcomp(env, STATE, CONS, TCOMP, TITLES, seeds, save_path, RL_number=len(MODELS))
+        save_path = env.settings['Integration']['savefile'] + env.settings['Integration']['subfolder'] +\
+            'Energy_vs_tcomp_scatter.png'
+        plot_energy_vs_tcomp_compar(env, STATE, CONS, TCOMP, TITLES, seeds, save_path, RL_number=len(MODELS))

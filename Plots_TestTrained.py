@@ -164,7 +164,7 @@ def plot_test_reward(a, test_reward, trainingTime):
     # pts = 11
     # ax[0].plot(x_episodes, steps_perepisode, color = colors[0], alpha = 1)
     episodes = len(test_reward) 
-    episodes = 3000
+    # episodes = 1000
     x_episodes = np.arange(episodes-1)
     
     REWARD_avg = []
@@ -192,19 +192,19 @@ def plot_test_reward(a, test_reward, trainingTime):
         reshaped = np.array(test_reward[e]).reshape((-1, 3))
         REWARD_avg.append(np.mean(reshaped[:, 0]))
         REWARD_std.append(np.std(reshaped[:, 0]))
-        REWARD_min.append(min(reshaped[:, 0]))
-        REWARD_max.append(max(reshaped[:, 0]))
+        # REWARD_min.append(min(reshaped[:, 0]))
+        # REWARD_max.append(max(reshaped[:, 0]))
 
         # print(e, test_reward[e])
         EERROR_avg.append(np.mean(np.log10(abs(reshaped[:, 1]))))
         EERROR_std.append(np.std(np.log10(abs(reshaped[:, 1]))))
-        EERROR_min.append(min(np.log10(abs(reshaped[:, 1]))))
-        EERROR_max.append(max(np.log10(abs(reshaped[:, 1]))))
+        # EERROR_min.append(min(np.log10(abs(reshaped[:, 1]))))
+        # EERROR_max.append(max(np.log10(abs(reshaped[:, 1]))))
         
         TCOMP_avg.append(np.mean(reshaped[:, 2]))
         TCOMP_std.append(np.std(reshaped[:, 2]))
-        TCOMP_min.append(min(reshaped[:, 2]))
-        TCOMP_max.append(max(reshaped[:, 2]))
+        # TCOMP_min.append(min(reshaped[:, 2]))
+        # TCOMP_max.append(max(reshaped[:, 2]))
 
         REWARD_all[e, :] = np.array(np.log10(abs(reshaped[:, 0])))
         EERROR_all[e, :] = np.array(np.log10(abs(reshaped[:, 1])))
@@ -274,7 +274,7 @@ def plot_test_reward(a, test_reward, trainingTime):
     # ax[2].set_ylim([0.0001, 0.003])
 
     # For hermite 2
-    ax[0].set_ylim([-10, 10])
+    # ax[0].set_ylim([-10, 10])
     # ax[1].set_ylim([-10, 0])
     # ax[2].set_ylim([-15, -0.5])
     # ax[3].set_ylim([0.0001, 0.003])
@@ -742,7 +742,7 @@ def plot_energy_vs_tcomp(env, STATES, CONS, TCOMP, Titles, seeds, save_path, RL_
     # order = [3, 1,0, 2]
     alpha =  [0.5, 0.5, 0.5]+[0.8]*RL_number
     # plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-2,(types-RL_number)//2+RL_number+1, (types)-1]
-    plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-2, (types)-1]
+    plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-1, (types)-1]
     # plot_index = [i for i in range(RL_number)] + [RL_number, 7+RL_number, (types)-1]
     order = np.arange(len(plot_index))
     dots_to_plot = 100
@@ -852,7 +852,91 @@ def plot_energy_vs_tcomp_integrators(env, STATES, CONS, TCOMP, Titles, seeds, sa
     plt.savefig(save_path, dpi = 100)
     plt.show()
 
+def plot_energy_vs_tcomp_compar(env, STATES, CONS, TCOMP, Titles, seeds, save_path, RL_number = 1):
+    """
+    plot_energy_vs_tcomp: plot energy and computation time at the end of the simulation for many initializations
+    INPUTS:
+        env: environment for the runs
+        states: state information containing particle evolution
+        cons: information containing energy errors, rewards and actions taken
+        tcomp: information containing the computation times
+        titles: label  of each case
+        save_path: path to save the figure
+    """
+    steps = len(TCOMP[0])
+    Energy_error, T_comp, R, action = calculate_errors(STATES, CONS, TCOMP)
+
+    # # Group initializations per action type
+    types = len(TCOMP)//len(seeds)
+    X = []
+    Y = []
+    for i in range(types):
+        X.append(Energy_error[-1, i*len(seeds):(i+1)*len(seeds)])
+        Y.append(np.sum(T_comp[:, i*len(seeds):(i+1)*len(seeds)], axis = 0))
+
     
+    fig = plt.figure(figsize = (8,8))
+    gs1 = matplotlib.gridspec.GridSpec(2, 1, figure = fig, \
+                                       left=0.18, wspace=0.4, 
+                                       hspace = 0.2, right = 0.99,
+                                        top = 0.97, bottom = 0.11)
+    
+    msize = 80
+    alphavalue = 0.5
+    alphavalue2 = 0.9
+    markers = ['o', 's', '^','x', 'o', 's', 'o', 'x', 's', 'o', 's', 'o', 'x', 's', 'o']
+    # labels = [i[10] for i in Titles[0:RL_number]]
+    labels = Titles
+    # for i in range(types-RL_number):
+    #     labels.append(r'$\mu$ = %.1E'%env.actions[i])
+    # print(labels)
+
+    ax1 = fig.add_subplot(gs1[0]) 
+    ax2 = fig.add_subplot(gs1[1])
+
+    plot_index = [i for i in range(RL_number)] + [RL_number, (types-RL_number)//2+RL_number-1, (types)-1]
+    # plot_index = [i for i in range(RL_number)] + [RL_number, 7+RL_number, (types)-1]
+    order = np.arange(len(plot_index))
+    dots_to_plot = 100
+    xaxis = np.arange(4)
+    for j in range(len(xaxis)):
+        for i, index in enumerate(reversed(plot_index)):
+            if j == 0:
+                label = Titles[index]
+            else:
+                label = ''
+            ax1.scatter(xaxis[j], X[index][j], marker = markers[i], color = colors[i], label = label, s = msize)
+            ax2.scatter(xaxis[j], Y[index][j], marker = markers[i], color = colors[i], s = msize)
+    
+    labelsize = 17
+    ax1.legend(fontsize = labelsize-3)
+    ax1.set_xlabel('Seed',  fontsize = labelsize)
+    ax1.set_ylabel('Final Energy Error',  fontsize = labelsize)
+    ax2.set_ylabel('Total computation time (s)',  fontsize = labelsize)
+    ax2.set_xlabel('Seed',  fontsize = labelsize)
+    ax1.set_yscale('log')
+    ax2.set_yscale('log')
+    ax1.grid(alpha = 0.5)
+    ax2.grid(alpha = 0.5)
+
+    # For hermite
+    # ax1.set_xlim([8e-2, 1.0])
+    # ax2.set_xlim([8e-2, 1.0])
+    # ax1.set_ylim([1e-14, 1e0])
+    # ax3.set_ylim([1e-14, 1e0])
+
+    # For symple
+    # ax1.set_xlim([2e-2, 0.4])
+    # ax1.set_ylim([1e-14, 1e0])
+    # ax2.set_xlim([2e-2, 0.4])
+    # ax3.set_ylim([1e-14, 1e1])
+
+    for ax in [ax1, ax2]:
+        ax.tick_params(axis='both', which='major', labelsize=labelsize-2)
+    
+    plt.savefig(save_path, dpi = 100)
+    plt.show()
+
 def plot_int_comparison(env, STATES, CONS, TCOMP, Titles, I, save_path):
     """
     plot_int_comparison: compare different integrators when applied to one initialization
