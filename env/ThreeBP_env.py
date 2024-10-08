@@ -13,6 +13,7 @@ import gym
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import math
 from setuptools import setup
 import json
 
@@ -283,7 +284,7 @@ class ThreeBodyProblem_env(gym.Env):
                 g = Hermite()
             # Collision detection and softening
             # g.stopping_conditions.timeout_detection.enable()
-            g.parameters.epsilon_squared = 1e-9 | nbody_system.length**2
+            # g.parameters.epsilon_squared = 1e-16 | nbody_system.length**2
         elif integrator_type == 'Ph4': 
             if self.settings['InitialConditions']['units'] == 'si':
                 g = ph4(self.converter, number_of_workers = 1)
@@ -333,7 +334,7 @@ class ThreeBodyProblem_env(gym.Env):
         else:
             # Delta_E_total = (E_total - self.E_0_total)
             Delta_E_total = (E_total - self.E_0)/self.E_0
-            return Delta_E_total
+            return Delta_E_total + 1e-20
                     
 
     def _get_state(self, particles, E):  # TODO: change to include all particles?
@@ -423,7 +424,6 @@ class ThreeBodyProblem_env(gym.Env):
                         (W[2]*1/abs(np.log10(action)))
                 return a
             
-                
             elif self.settings['RL']['reward_f'] == 3:
                 a = -W[0]*np.log10(abs(Delta_E)) + \
                     W[2]/abs(np.log10(action))
@@ -432,6 +432,20 @@ class ThreeBodyProblem_env(gym.Env):
             elif self.settings['RL']['reward_f'] == 4: 
                 a = -W[0]* np.log10(abs(Delta_E)/1e-8)/self.iteration+\
                     -W[1]*(np.log10(abs(Delta_E))-np.log10(abs(Delta_E_prev))) +\
+                    W[2]/abs(np.log10(action)) 
+                return a
+            
+            elif self.settings['RL']['reward_f'] == 5: #USing this one!!!!
+                # a = -W[0]* (np.log10(abs(Delta_E)/1e-10)/\
+                a = -W[0]* (np.log10(abs(Delta_E)/1e-10)/\
+                         abs(np.log10(abs(Delta_E)))**3/self.iteration) +\
+                    W[2]/abs(np.log10(action)) 
+                return a
+            
+            elif self.settings['RL']['reward_f'] == 6: 
+                x = np.log10(abs(Delta_E)/1e-10)
+                b = (math.exp(x) - math.exp(-x)) / (math.exp(x) + math.exp(-x))
+                a = -W[0]* b/self.iteration +\
                     W[2]/abs(np.log10(action)) 
                 return a
             
